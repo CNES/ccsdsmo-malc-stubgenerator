@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+ The MIT License (MIT)
+
+Copyright (c) 2016 CNES
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+-->
+
+<mal:specification xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xmlns:mal="http://www.ccsds.org/schema/ServiceSchema">
+  <mal:area name="TestArea" number="200" version="1">
+  
+    <mal:dataTypes>
+      <mal:enumeration name="TestEnumeration" shortFormPart="2" comment="">
+        <mal:item value="FIRST" nvalue="1" comment=""/>
+        <mal:item value="SECOND" nvalue="2" comment=""/>
+        <mal:item value="LAST" nvalue="100000" comment=""/>
+      </mal:enumeration>
+    </mal:dataTypes>
+    
+    <mal:service name="TestService" number="1">
+      <mal:capabilitySet number="1">
+        <mal:sendIP name="testSend" number="1" supportInReplay="false" comment="">
+          <mal:messages>
+            <mal:send>
+              <mal:type area="TestArea" service="TestService" name="TestComposite" />
+              <mal:type list="true" area="MAL" name="String" />
+              <mal:type area="TestArea" service="TestService" name="TestAbstractComposite" />
+            </mal:send>
+          </mal:messages>
+        </mal:sendIP>
+        
+        <mal:submitIP name="testSubmit" number="2" supportInReplay="false" comment="">
+          <mal:messages>
+            <mal:submit>
+              <mal:type area="TestArea" service="TestService" name="TestComposite" />
+              <mal:type list="true" area="MAL" name="String" />
+              <!-- mal:type area="TestArea" service="TestService" name="TestAbstractComposite" / -->
+            </mal:submit>
+          </mal:messages>
+        </mal:submitIP>
+        
+        <mal:requestIP name="testRequest" number="3" supportInReplay="false" comment="">
+          <mal:messages>
+            <mal:request>
+              <mal:type area="TestArea" service="TestService" name="TestComposite" />
+              <mal:type list="true" area="MAL" name="String" />
+            </mal:request>
+            <mal:response>
+              <mal:type list="true" area="MAL" name="String" />
+            </mal:response>
+          </mal:messages>
+        </mal:requestIP>
+        
+        <mal:invokeIP name="testInvoke" number="4" supportInReplay="false" comment="">
+          <mal:messages>
+            <mal:invoke>
+              <mal:type list="true" area="MAL" name="String" />
+            </mal:invoke>
+            <mal:acknowledgement/>
+            <mal:response>
+              <mal:type list="true" area="MAL" name="String" />
+            </mal:response>
+          </mal:messages>
+        </mal:invokeIP>
+        
+        <mal:progressIP name="testProgress" number="5" supportInReplay="false" comment="">
+          <mal:messages>
+            <mal:progress>
+              <mal:type list="true" area="MAL" name="String" />
+            </mal:progress>
+            <mal:acknowledgement/>
+            <mal:update/>
+            <mal:response>
+              <mal:type list="true" area="MAL" name="String" />
+            </mal:response>
+          </mal:messages>
+        </mal:progressIP>
+        
+        <mal:pubsubIP name="testMonitor" number="6" supportInReplay="false"
+                      comment="The PubSub operation allows a consumer to subscribe for events.">
+          <mal:messages>
+            <mal:publishNotify>
+              <mal:type area="TestArea" service="TestService" name="TestUpdate" />
+              <mal:type area="MAL" name="String" />
+            </mal:publishNotify>
+          </mal:messages>
+        </mal:pubsubIP>
+        
+        <mal:invokeIP name="testInvokeAllTypes" number="7" supportInReplay="false" comment="">
+          <mal:messages>
+            <mal:invoke>
+              <mal:type area="TestArea" service="TestService" name="TestFullComposite" />
+            </mal:invoke>
+            <mal:acknowledgement/>
+            <mal:response>
+              <mal:type area="TestArea" service="TestService" name="TestFullComposite" />
+            </mal:response>
+          </mal:messages>
+        </mal:invokeIP>
+        
+      </mal:capabilitySet>
+      
+      <mal:dataTypes>
+        
+        <mal:composite name="TestComposite" shortFormPart="1" comment="">
+          <mal:extends>
+            <mal:type area="MAL" name="Composite" />
+          </mal:extends>
+          <mal:field name="stringField" canBeNull="true" comment="">
+            <mal:type area="MAL" name="String" />
+          </mal:field>
+          <mal:field name="intField" canBeNull="true" comment="">
+            <mal:type area="MAL" name="Integer" />
+          </mal:field>
+          <mal:field name="floatField" canBeNull="true" comment="">
+            <mal:type area="MAL" name="Float" />
+          </mal:field>
+          <mal:field name="doubleField" canBeNull="true" comment="">
+            <mal:type area="MAL" name="Double" />
+          </mal:field>
+        </mal:composite>
+        
+        <mal:composite name="TestFullComposite" shortFormPart="2" comment="">
+          	<mal:extends>
+            	<mal:type area="MAL" name="Composite" />
+          	</mal:extends>
+          	<mal:field name="boolField" canBeNull="false" comment="">
+            	<mal:type area="MAL" name="Boolean" />
+          	</mal:field>
+          	<mal:field name="intField" canBeNull="true" comment="">
+            	<mal:type area="MAL" name="Integer" />
+          	</mal:field>
+          	<mal:field name="stringField" canBeNull="true" comment="">
+            	<mal:type area="MAL" name="String" />
+          	</mal:field>
+          	<mal:field name="blobField" canBeNull="false" comment="">
+            	<mal:type area="MAL" name="Blob" />
+          	</mal:field>
+          	<mal:field name="enumField" canBeNull="false" comment="">
+            	<mal:type area="TestArea" name="TestEnumeration" />
+          	</mal:field>
+          	<mal:field name="compField" canBeNull="true" comment="">
+            	<mal:type area="TestArea" service="TestService" name="TestComposite" />
+          	</mal:field>
+          	<mal:field name="boolListField" canBeNull="true" comment="">
+            	<mal:type list="true" area="MAL" name="Boolean" />
+          	</mal:field>
+          	<mal:field name="intListField" canBeNull="false" comment="">
+            	<mal:type list="true" area="MAL" name="Integer" />
+          	</mal:field>
+          	<mal:field name="stringListField" canBeNull="false" comment="">
+            	<mal:type list="true" area="MAL" name="String" />
+          	</mal:field>
+          	<mal:field name="blobListField" canBeNull="true" comment="">
+            	<mal:type list="true" area="MAL" name="Blob" />
+          	</mal:field>
+          	<mal:field name="enumListField" canBeNull="true" comment="">
+            	<mal:type list="true" area="TestArea" name="TestEnumeration" />
+          	</mal:field>
+          	<mal:field name="compListField" canBeNull="false" comment="">
+            	<mal:type list="true" area="TestArea" service="TestService" name="TestComposite" />
+          	</mal:field>
+          	<mal:field name="attributeField" canBeNull="false" comment="">
+            	<mal:type area="MAL" name="Attribute" />
+          	</mal:field>
+        </mal:composite>
+        
+        <mal:composite name="TestUpdate" shortFormPart="3" comment="">
+          <mal:extends>
+            <mal:type area="MAL" name="Composite" />
+          </mal:extends>
+          <mal:field name="stringField" canBeNull="true" comment="">
+            <mal:type area="MAL" name="String" />
+          </mal:field>
+        </mal:composite>
+        
+        <mal:composite name="TestAbstractComposite" comment="">
+          <mal:extends>
+            <mal:type area="MAL" name="Composite" />
+          </mal:extends>
+          <mal:field name="intField" canBeNull="false" comment="">
+            <mal:type area="MAL" name="Integer" />
+          </mal:field>
+        </mal:composite>
+        <mal:composite name="TestFinalCompositeA" shortFormPart="4" comment="">
+          <mal:extends>
+            <mal:type area="TestArea" service="TestService"
+                      name="TestAbstractComposite" />
+          </mal:extends>
+          <mal:field name="intField2" canBeNull="false" comment="">
+            <mal:type area="MAL" name="Integer" />
+          </mal:field>
+        </mal:composite>
+        <mal:composite name="TestFinalCompositeB" shortFormPart="5" comment="">
+          <mal:extends>
+            <mal:type area="TestArea" service="TestService"
+                      name="TestAbstractComposite" />
+          </mal:extends>
+          <mal:field name="stringField" canBeNull="false" comment="">
+            <mal:type area="MAL" name="String" />
+          </mal:field>
+        </mal:composite>
+      </mal:dataTypes>
+    </mal:service>
+  </mal:area>
+</mal:specification>

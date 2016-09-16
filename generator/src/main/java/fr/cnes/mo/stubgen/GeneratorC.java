@@ -277,16 +277,7 @@ public class GeneratorC extends GeneratorBase
         processService(areaContext, service);
       }
       
-      // include the required areas definitions
-      comment = "include required areas definitions";
-      areaContext.areaH.addNewLine();
-      areaContext.areaH.addSingleLineComment(comment);
-      for (String reqArea : areaContext.reqAreas)
-      {
-      	// do not include the currently generated <area>.h
-      	if (! areaContext.area.getName().equals(reqArea))
-      		areaContext.areaH.addInclude(reqArea.toLowerCase() + ".h");
-      }
+    	areaContext.areaH.addInclude("mal.h");
       if (generateTransportMalbinary)
       {
       	areaContext.areaH.addInclude("malbinary.h");
@@ -295,6 +286,7 @@ public class GeneratorC extends GeneratorBase
       {
       	areaContext.areaH.addInclude("malsplitbinary.h");
       }
+      areaContext.areaH.addNewLine();
 
       // define the generic decoding function for the area (it is actually generic for the application)
       addGenericParamDecodingFunctions(areaContext);
@@ -306,6 +298,21 @@ public class GeneratorC extends GeneratorBase
       areaContext.areaH.addAreaDefine("AREA_NUMBER", String.valueOf(area.getNumber()));
       areaContext.areaH.addAreaDefine("AREA_VERSION", String.valueOf(area.getVersion()));
 
+      // write the types part of the <area>.h file
+      areaContext.areaH.addStatements(areaContext.areaHTypesW);
+
+      // include the required areas definitions
+      comment = "include required areas definitions";
+      areaContext.areaH.addNewLine();
+      areaContext.areaH.addSingleLineComment(comment);
+      for (String reqArea : areaContext.reqAreas)
+      {
+      	// do not include mal.h and the currently generated <area>.h
+      	if (! areaContext.area.getName().equals(reqArea) &&
+      			! StdStrings.MAL.equals(reqArea))
+      		areaContext.areaH.addInclude(reqArea.toLowerCase() + ".h");
+      }
+      
       // write the main content of the <area>.h file
       areaContext.areaH.addStatements(areaContext.areaHContentW);
 
@@ -334,9 +341,9 @@ public class GeneratorC extends GeneratorBase
   	ServiceContext serviceContext = new ServiceContext(areaContext, service);
 
     String comment = "standard service identifiers";
-    areaContext.areaHContent.addNewLine();
-    areaContext.areaHContent.addSingleLineComment(comment);
-  	areaContext.areaHContent.addDefine(areaContext.areaNameL.toUpperCase() + "_" + serviceContext.serviceNameL.toUpperCase() + "_SERVICE_NUMBER", String.valueOf(service.getNumber()));
+    areaContext.areaHTypes.addNewLine();
+    areaContext.areaHTypes.addSingleLineComment(comment);
+  	areaContext.areaHTypes.addDefine(areaContext.areaNameL.toUpperCase() + "_" + serviceContext.serviceNameL.toUpperCase() + "_SERVICE_NUMBER", String.valueOf(service.getNumber()));
   	
     // if service level types exist
     if ((null != service.getDataTypes()) && !service.getDataTypes().getCompositeOrEnumeration().isEmpty())
@@ -681,22 +688,22 @@ public class GeneratorC extends GeneratorBase
     String mapEnumNameU = mapEnumNameL.toUpperCase();
 
     comment = "generated code for enumeration " + mapEnumNameL;
-    areaContext.areaHContent.addNewLine();
-    areaContext.areaHContent.addSingleLineComment(comment);
+    areaContext.areaHTypes.addNewLine();
+    areaContext.areaHTypes.addSingleLineComment(comment);
     
     // typedef enum {
     //	<AREA>_[<SERVICE>_]<ENUMERATION>_<ENUMERATED NAME>,
     //	...
     // } <area>_[<service>_]<enumeration>_t;
-    areaContext.areaHContent.openTypedefEnum(null);
+    areaContext.areaHTypes.openTypedefEnum(null);
     for (int i = 0; i < enumSize; i++)
     {
       Item item = enumeration.getItem().get(i);
       // the nValue of the enumerated variable is ignored at this stage
       // we keep the default value set by the C language, optimal for encoding
-      areaContext.areaHContent.addTypedefEnumElement(mapEnumNameU + "_" + item.getValue().toUpperCase(), null, i == (enumSize-1));
+      areaContext.areaHTypes.addTypedefEnumElement(mapEnumNameU + "_" + item.getValue().toUpperCase(), null, i == (enumSize-1));
     }
-    areaContext.areaHContent.closeTypedefEnum(mapEnumNameL + "_t");
+    areaContext.areaHTypes.closeTypedefEnum(mapEnumNameL + "_t");
     
     // create an array holding the enumerated values in the <area>.c file
     // only the indexes of the enumerated variables are kept in the <area>.h
@@ -716,15 +723,15 @@ public class GeneratorC extends GeneratorBase
     
     // create the type short form
     comment = "short form for enumeration type " + mapEnumNameL;
-    areaContext.areaHContent.addNewLine();
-    areaContext.areaHContent.addSingleLineComment(comment);
+    areaContext.areaHTypes.addNewLine();
+    areaContext.areaHTypes.addSingleLineComment(comment);
     // #define <AREA>_[<SERVICE>_]<ENUMERATION>_SHORT_FORM <type absolute short form>
     long typeShortForm = getAbsoluteShortForm(
 				area.getNumber(),
 				service == null ? 0 : service.getNumber(),
 				area.getVersion(),
 				(int) enumeration.getShortFormPart());
-    areaContext.areaHContent.addDefine(
+    areaContext.areaHTypes.addDefine(
     		mapEnumNameU + "_SHORT_FORM",
     		"0x" + Long.toHexString(typeShortForm) + "L");
     
@@ -733,18 +740,19 @@ public class GeneratorC extends GeneratorBase
     
     // create the type short form
     comment = "short form for list of enumeration type " + mapEnumNameL;
-    areaContext.areaHContent.addNewLine();
-    areaContext.areaHContent.addSingleLineComment(comment);
+    areaContext.areaHTypes.addNewLine();
+    areaContext.areaHTypes.addSingleLineComment(comment);
     // #define <AREA>_[<SERVICE>_]<ENUMERATION>_LIST_SHORT_FORM <type absolute short form>
     typeShortForm = getAbsoluteShortForm(
     		area.getNumber(),
     		service == null ? 0 : service.getNumber(),
 				area.getVersion(),
 				- (int) enumeration.getShortFormPart());
-    areaContext.areaHContent.addDefine(
+    areaContext.areaHTypes.addDefine(
     		mapEnumNameU + "_LIST_SHORT_FORM",
     		"0x" + Long.toHexString(typeShortForm) + "L");
 
+    areaContext.areaHTypes.flush();
     areaContext.areaHContent.flush();
   }
 
@@ -764,7 +772,7 @@ public class GeneratorC extends GeneratorBase
 
     // declare the type in <area>.h
     // typedef _<area>_[<service>_]<type>_list_t <area>_[<service>_]<type>_list_t;
-    areaContext.areaHContent.addTypedefStruct("_" + mapEnumNameL + "_list_t", mapEnumNameL + "_list_t");
+    areaContext.areaHTypes.addTypedefStruct("_" + mapEnumNameL + "_list_t", mapEnumNameL + "_list_t");
     
     // we create an <enumeration>_list.h and an <enumeration>_list.c files
     // create the Writer structures
@@ -981,6 +989,8 @@ public class GeneratorC extends GeneratorBase
     comment = "generated code for composite " + malCompName;
     areaContext.areaHContent.addNewLine();
     areaContext.areaHContent.addSingleLineComment(comment);
+    areaContext.areaHTypes.addNewLine();
+    areaContext.areaHTypes.addSingleLineComment(comment);
     
     CompositeContext compCtxt = new CompositeContext(areaContext, serviceContext, composite, folder);
     String mapCompNameL = compCtxt.mapCompNameL;
@@ -988,7 +998,7 @@ public class GeneratorC extends GeneratorBase
 
     // declare the type in <area>.h
     // typedef struct _<area>_[<service>_]<composite>_t <area>_[<service>_]<composite>_t;
-    areaContext.areaHContent.addTypedefStruct("_" + mapCompNameL + "_t", mapCompNameL + "_t");
+    areaContext.areaHTypes.addTypedefStruct("_" + mapCompNameL + "_t", mapCompNameL + "_t");
     
     // we create a <composite>.h and a <composite>.c files
     // create the Writer structures
@@ -1027,15 +1037,15 @@ public class GeneratorC extends GeneratorBase
     
     // create the type short form in the <area>.h file
     comment = "short form for composite type " + malCompName;
-    areaContext.areaHContent.addNewLine();
-    areaContext.areaHContent.addSingleLineComment(comment);
+    areaContext.areaHTypes.addNewLine();
+    areaContext.areaHTypes.addSingleLineComment(comment);
     // #define <AREA>_[<SERVICE>_]<COMPOSITE>_SHORT_FORM <type absolute short form>
     long typeShortForm = getAbsoluteShortForm(
 				area.getNumber(),
 				service == null ? 0 : service.getNumber(),
 				area.getVersion(),
 				composite.getShortFormPart().intValue());
-    areaContext.areaHContent.addDefine(
+    areaContext.areaHTypes.addDefine(
     		mapCompNameU + "_SHORT_FORM",
     		"0x" + Long.toHexString(typeShortForm) + "L");
 
@@ -1044,15 +1054,15 @@ public class GeneratorC extends GeneratorBase
     
     // create the type short form
     comment = "short form for list of composite type " + malCompName;
-    areaContext.areaHContent.addNewLine();
-    areaContext.areaHContent.addSingleLineComment(comment);
+    areaContext.areaHTypes.addNewLine();
+    areaContext.areaHTypes.addSingleLineComment(comment);
     // #define <AREA>_[<SERVICE>_]<COMPOSITE>_LIST_SHORT_FORM <type absolute short form>
     typeShortForm = getAbsoluteShortForm(
     		area.getNumber(),
     		service == null ? 0 : service.getNumber(),
 				area.getVersion(),
 				-composite.getShortFormPart().intValue());
-    areaContext.areaHContent.addDefine(
+    areaContext.areaHTypes.addDefine(
     		mapCompNameU + "_LIST_SHORT_FORM",
     		"0x" + Long.toHexString(typeShortForm) + "L");
 
@@ -1089,7 +1099,7 @@ public class GeneratorC extends GeneratorBase
     // declare the type in <area>.h
     // typedef _<area>_[<service>_]<type>_list_t <area>_[<service>_]<type>_list_t;
     String mapCompListType = compCtxt.mapCompNameL + "_list_t";
-    CFileWriter areaH = compCtxt.areaContext.areaHContent;
+    CFileWriter areaH = compCtxt.areaContext.areaHTypes;
     areaH.addTypedefStruct("_" + mapCompListType, mapCompListType);
 
     // we create a <composite>_list.h and a <composite>_list.c files
@@ -4362,6 +4372,10 @@ public class GeneratorC extends GeneratorBase
   	final String areaNameL;
   	/** writer to the <area>.h file. */
   	final AreaHWriter areaH;
+  	/** buffer for the types part of the <area>.h file */
+  	final StatementWriter areaHTypesW;
+  	/** writer for the types part of the <area>.h file */
+  	final CFileWriter areaHTypes;
   	/** buffer for the main content of the <area>.h file */
   	final StatementWriter areaHContentW;
   	/** writer for the main content of the <area>.h file */
@@ -4388,6 +4402,8 @@ public class GeneratorC extends GeneratorBase
       File cFolder = new File(areaFolder,"src");
       cFolder.mkdirs();
       areaH = new AreaHWriter(hFolder, areaNameL);
+      areaHTypesW = new StatementWriter();
+      areaHTypes = new CFileWriter(areaHTypesW);
       areaHContentW = new StatementWriter();
       areaHContent = new CFileWriter(areaHContentW);
       areaC = new AreaCWriter(cFolder, areaNameL);

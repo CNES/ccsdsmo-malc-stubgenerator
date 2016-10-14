@@ -117,6 +117,14 @@ SOFTWARE.
           </mal:messages>
         </mal:invokeIP>
         
+        <mal:sendIP name="testCrossRef" number="8" supportInReplay="false" comment="">
+          <mal:messages>
+            <mal:send>
+              <mal:type area="COM" service="Archive" name="ArchiveDetails" />
+            </mal:send>
+          </mal:messages>
+        </mal:sendIP>
+        
       </mal:capabilitySet>
       
       <mal:dataTypes>

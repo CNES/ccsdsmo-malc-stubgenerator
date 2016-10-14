@@ -26,6 +26,7 @@ package fr.cnes.mo.stubgen;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.io.Writer;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -85,10 +86,16 @@ public class GeneratorC extends GeneratorBase
   
 	// generation for the transports malbinary and malsplitbinary
 	// currently statically set to true
-	private boolean generateTransportMalbinary = true;
+	private boolean generateTransportMalbinary;
 	private static final String transportMalbinary = "malbinary";
-	private boolean generateTransportMalsplitbinary = true;
+	private boolean generateTransportMalsplitbinary;
 	private static final String transportMalsplitbinary = "malsplitbinary";
+	
+	// generate all areas in a single zproject
+	// and build the project.xml file
+	private boolean singleZproject = true;
+	private String zprojectName = "Auto generated";
+	List<String> zclasses;
   
   /**
    * Constructor used by the StubGenerator main.
@@ -104,6 +111,17 @@ public class GeneratorC extends GeneratorBase
                     "MALInvokeOperation",
                     "MALProgressOperation",
                     "MALPubSubOperation"));
+    zclasses = new ArrayList<String>();
+    
+    generateTransportMalbinary = Boolean.getBoolean("generateTransportMalbinary");
+    generateTransportMalsplitbinary = Boolean.getBoolean("generateTransportMalsplitbinary");
+    if (!generateTransportMalbinary && !generateTransportMalsplitbinary) {
+    	// keep old behavior and generate both encoding
+    	generateTransportMalbinary = true;
+    	generateTransportMalsplitbinary = true;
+    }
+    
+    zprojectName = System.getProperty("zprojectName", zprojectName);
   }
 
   @Override
@@ -188,9 +206,14 @@ public class GeneratorC extends GeneratorBase
     {
       processArea(destFolder, area);
     }
+    
+    // generate the zproject project.xml file
+    if (singleZproject) {
+    	generateZproject(destFolder);
+    }
   }
 
-  @Override
+	@Override
   public void close(String destinationFolderName) throws IOException
   {
   	super.close(destinationFolderName);
@@ -332,6 +355,9 @@ public class GeneratorC extends GeneratorBase
       areaContext.areaH.close();
       areaContext.areaC.flush();
       areaContext.areaC.close();
+      
+      // add area to the list of zproject classes
+      zclasses.add(areaContext.areaNameL);
     }
   }
 
@@ -776,8 +802,10 @@ public class GeneratorC extends GeneratorBase
     
     // we create an <enumeration>_list.h and an <enumeration>_list.c files
     // create the Writer structures
-    TypeListWriter enumListH = new TypeListWriter(folder, mapEnumNameL + "_list", "h");
-    TypeListWriter enumListC = new TypeListWriter(folder, mapEnumNameL + "_list", "c");
+    String nameBase = mapEnumNameL + "_list";
+    TypeListWriter enumListH = new TypeListWriter(folder, nameBase, "h");
+    TypeListWriter enumListC = new TypeListWriter(folder, nameBase, "c");
+    zclasses.add(nameBase);
 
     // write the opening statements in the global files
     enumListH.openDefine();
@@ -1004,6 +1032,7 @@ public class GeneratorC extends GeneratorBase
     // create the Writer structures
     CompositeHWriter compositeH = compCtxt.compositeH;
     CompositeCWriter compositeC = compCtxt.compositeC;
+    zclasses.add(mapCompNameL);
 
     // include the file in the main <area>.h
     // assumes that the file folder is the main folder for the area 
@@ -1104,8 +1133,10 @@ public class GeneratorC extends GeneratorBase
 
     // we create a <composite>_list.h and a <composite>_list.c files
     // create the Writer structures
-    TypeListWriter compListH = new TypeListWriter(folder, compCtxt.mapCompNameL + "_list", "h");
-    TypeListWriter compListC = new TypeListWriter(folder, compCtxt.mapCompNameL + "_list", "c");
+    String baseName = compCtxt.mapCompNameL + "_list";
+    TypeListWriter compListH = new TypeListWriter(folder, baseName, "h");
+    TypeListWriter compListC = new TypeListWriter(folder, baseName, "c");
+    zclasses.add(baseName);
 
     // write the opening statements in the global files
     compListH.openDefine();
@@ -4306,7 +4337,33 @@ public class GeneratorC extends GeneratorBase
 	  areaC.addStatement("return rc;");
 	  areaC.closeFunctionBody();
   }
-  
+
+  private void generateZproject(File destFolder) throws IOException {
+		PrintStream out;
+		out = new PrintStream(new File(destFolder, "project.xml"));
+		
+		out.println("<project");
+		out.println("    name = \"" + zprojectName + "\"");
+		out.println("    description = \"Auto generated zproject project file\"");
+		out.println("    script = \"zproject.gsl\"");
+		out.println("    email = \"\"");
+		out.println("    >");
+		out.println();
+		out.println("    <include filename = \"license.xml\" />");
+		out.println("    <version major = \"1\" minor = \"0\" patch = \"0\" />");
+		out.println();
+		out.println("    <use project = \"malattributes\" />");
+		out.println("    <use project = \"malbinary\" />");
+		out.println("    <use project = \"mal\" />");
+		out.println();
+		// list the zproject classes
+		for (String className : zclasses) {
+			out.println("    <class name = \"" + className + "\" />");
+		}
+		out.println();
+    out.println("</project>");
+	}
+
   public static long getAbsoluteShortForm(int area, int service, int version, int type) throws IOException
   {
   	final int TYPE_SHORT_FORM_MAX = 0x007FFFFF;
@@ -4392,8 +4449,12 @@ public class GeneratorC extends GeneratorBase
   	public AreaContext(File destinationFolder, AreaType area) throws IOException
   	{
   		this.area = area;
-      // create folder
-      areaFolder = StubUtils.createFolder(destinationFolder, area.getName());
+  		if (singleZproject) {
+  			areaFolder = destinationFolder;
+  		} else {
+  			// create folder
+  			areaFolder = StubUtils.createFolder(destinationFolder, area.getName());
+  		}
       // area name in lower case
       areaNameL = area.getName().toLowerCase();
       // create the Writer structures

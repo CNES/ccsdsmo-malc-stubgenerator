@@ -50,8 +50,8 @@ SOFTWARE.
               <targetLanguages>
                 <targetLanguage>C</targetLanguage>
               </targetLanguages>
-              <xmlDirectory>${project.build.sourceDirectory}/../xml</xmlDirectory>
-              <xmlRefDirectory>${project.build.sourceDirectory}/../xml-ref</xmlRefDirectory>
+              <xmlDirectory>${project.basedir}/src/main/xml</xmlDirectory>
+              <xmlRefDirectory>${project.basedir}/src/main/xml-ref</xmlRefDirectory>
             </configuration>
           </execution>
         </executions>

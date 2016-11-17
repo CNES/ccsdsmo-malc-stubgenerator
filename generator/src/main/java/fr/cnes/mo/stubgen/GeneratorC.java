@@ -3898,8 +3898,8 @@ public class GeneratorC extends GeneratorBase
 		//	mal_element_holder_t *element_holder);
 		areaContext.areaH.openFunctionPrototype("int", areaContext.areaNameL + "_" + transportMalbinary + "_add_mal_element_encoding_length", 3);
 		areaContext.areaH.addFunctionParameter("mal_encoder_t *", "encoder", false);
-		areaContext.areaH.addFunctionParameter("void *", "cursor", false);
-		areaContext.areaH.addFunctionParameter("mal_element_holder_t *", "element_holder", true);
+		areaContext.areaH.addFunctionParameter("mal_element_holder_t *", "element_holder", false);
+		areaContext.areaH.addFunctionParameter("void *", "cursor", true);
 		areaContext.areaH.closeFunctionPrototype();
 
 		// int <area>_malbinary_add_mal_element_encoding_length(
@@ -3908,8 +3908,8 @@ public class GeneratorC extends GeneratorBase
 		areaContext.areaC.addNewLine();
 		areaContext.areaC.openFunctionPrototype("int", areaContext.areaNameL + "_" + transportMalbinary + "_add_mal_element_encoding_length", 3);
 		areaContext.areaC.addFunctionParameter("mal_encoder_t *", "encoder", false);
-		areaContext.areaC.addFunctionParameter("void *", "cursor", false);
-		areaContext.areaC.addFunctionParameter("mal_element_holder_t *", "element_holder", true);
+		areaContext.areaC.addFunctionParameter("mal_element_holder_t *", "element_holder", false);
+		areaContext.areaC.addFunctionParameter("void *", "cursor", true);
 		areaContext.areaC.openFunctionBody();
 
 		//	int rc = 0;

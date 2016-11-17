@@ -3917,6 +3917,14 @@ public class GeneratorC extends GeneratorBase
 		//	if (rc < 0) return rc;
 		areaContext.areaC.addStatement("int rc = 0;");
 		
+		areaContext.areaC.addSingleLineComment("Encoding abstract mal_element require encoding short form");
+		// rc = mal_encoder_add_short_form_encoding_length(encoder, element->short_form, cursor);
+		// if (rc < 0)
+		//   return rc;
+		areaContext.areaC.addStatement("rc = mal_encoder_add_short_form_encoding_length(encoder, element_holder->short_form, cursor);");
+		areaContext.areaC.addStatement("if (rc < 0)", 1);
+		areaContext.areaC.addStatement("return rc;", -1);
+
 		// type specific decoding depending on the short form
 		Set <TypeKey> keys = allTypesMap.keySet();
 		boolean first = true;
@@ -4007,9 +4015,11 @@ public class GeneratorC extends GeneratorBase
 		areaContext.areaC.openFunctionBody();
 
 		//	int rc = 0;
+		areaContext.areaC.addStatement("int rc = 0;");
+
+		areaContext.areaC.addSingleLineComment("Encoding abstract mal_element require encoding short form");
 		//  rc = mal_encoder_encode_short_form(self, cursor, element_holder->short_form);
 		//	if (rc < 0) return rc;
-		areaContext.areaC.addStatement("int rc = 0;");
 		areaContext.areaC.addStatement("rc = mal_encoder_encode_short_form(encoder, cursor, element_holder->short_form);");
 		areaContext.areaC.addStatement("if (rc < 0)", 1);
 		areaContext.areaC.addStatement("return rc;", -1);

@@ -3824,10 +3824,7 @@ public class GeneratorC extends GeneratorBase
     		{
     			isPolymorphic = true;
     			// use a generic decoding function
-    			// rc = <area>_malbinary_decode_mal_element(decoder, cursor, element_holder);
-    			areaC.addStatement("rc = " + opStageContext.opContext.serviceContext.areaContext.areaNameL + "_" + transportMalbinary + "_decode_mal_element(decoder, cursor, element_holder);");
-    			areaC.addStatement("if (rc < 0)", 1);
-    			areaC.addStatement("return rc;", -1);
+    			addMalbinaryEncodingDecodeElement(areaC, opStageContext.opContext.serviceContext.areaContext, "element_holder");
     		}
     	}
     	else if (paramDetails.isAttribute)
@@ -3889,6 +3886,16 @@ public class GeneratorC extends GeneratorBase
   		addMalbinaryEncodingEncodeElementFunction(areaContext);
   		addMalbinaryEncodingDecodeElementFunction(areaContext);
   	}
+  }
+
+  private void addMalbinaryEncodingLengthElement(CFileWriter code, AreaContext areaContext, String varName) throws IOException
+  {
+	  //        rc = <area>_malbinary_add_mal_element_encoding_length(element, encoder, cursor);
+	  //        if (rc < 0)
+	  //          return rc;
+	  code.addStatement("rc = " + areaContext.areaNameL + "_" + transportMalbinary + "_add_mal_element_encoding_length(encoder, " + varName + ", cursor);");
+	  code.addStatement("if (rc < 0)", 1);
+	  code.addStatement("return rc;", -1);
   }
 
   private void addMalbinaryEncodingLengthElementFunction(AreaContext areaContext) throws IOException
@@ -3993,6 +4000,16 @@ public class GeneratorC extends GeneratorBase
 		areaContext.areaC.closeFunctionBody();
   }
 
+  private void addMalbinaryEncodingEncodeElement(CFileWriter code, AreaContext areaContext, String varName) throws IOException
+  {
+	  //        rc = <area>_malbinary_add_mal_element_encoding_length(element, encoder, cursor);
+	  //        if (rc < 0)
+	  //          return rc;
+	  code.addStatement("rc = " + areaContext.areaNameL + "_" + transportMalbinary + "_encode_mal_element(encoder, cursor, " + varName + ");");
+	  code.addStatement("if (rc < 0)", 1);
+	  code.addStatement("return rc;", -1);
+  }
+
   private void addMalbinaryEncodingEncodeElementFunction(AreaContext areaContext) throws IOException
   {
 		// int <area>_malbinary_encode_mal_element(
@@ -4090,6 +4107,16 @@ public class GeneratorC extends GeneratorBase
 				
 		areaContext.areaC.addStatement("return rc;");
 		areaContext.areaC.closeFunctionBody();
+  }
+
+  private void addMalbinaryEncodingDecodeElement(CFileWriter code, AreaContext areaContext, String varName) throws IOException
+  {
+	  //        rc = <area>_malbinary_add_mal_element_encoding_length(element, encoder, cursor);
+	  //        if (rc < 0)
+	  //          return rc;
+	  code.addStatement("rc = " + areaContext.areaNameL + "_" + transportMalbinary + "_decode_mal_element(decoder, cursor, "+ varName + ");");
+	  code.addStatement("if (rc < 0)", 1);
+	  code.addStatement("return rc;", -1);
   }
 
   private void addMalbinaryEncodingDecodeElementFunction(AreaContext areaContext) throws IOException

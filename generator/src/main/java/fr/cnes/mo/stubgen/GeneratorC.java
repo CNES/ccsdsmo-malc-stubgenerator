@@ -3885,13 +3885,13 @@ public class GeneratorC extends GeneratorBase
   {
   	if (generateTransportMalbinary)
   	{
-  		addMalbinaryEncodingLengthElement(areaContext);
-  		addMalbinaryEncodingEncodeElement(areaContext);
-  		addMalbinaryEncodingDecodeElement(areaContext);
+  		addMalbinaryEncodingLengthElementFunction(areaContext);
+  		addMalbinaryEncodingEncodeElementFunction(areaContext);
+  		addMalbinaryEncodingDecodeElementFunction(areaContext);
   	}
   }
 
-  private void addMalbinaryEncodingLengthElement(AreaContext areaContext) throws IOException
+  private void addMalbinaryEncodingLengthElementFunction(AreaContext areaContext) throws IOException
   {
 		// int <area>_malbinary_add_mal_element_encoding_length(
 	  	//	mal_encoder_t *encoder, void *cursor,
@@ -3993,7 +3993,7 @@ public class GeneratorC extends GeneratorBase
 		areaContext.areaC.closeFunctionBody();
   }
 
-  private void addMalbinaryEncodingEncodeElement(AreaContext areaContext) throws IOException
+  private void addMalbinaryEncodingEncodeElementFunction(AreaContext areaContext) throws IOException
   {
 		// int <area>_malbinary_encode_mal_element(
 	  	//	mal_encoder_t *encoder, void *cursor,
@@ -4092,7 +4092,7 @@ public class GeneratorC extends GeneratorBase
 		areaContext.areaC.closeFunctionBody();
   }
 
-  private void addMalbinaryEncodingDecodeElement(AreaContext areaContext) throws IOException
+  private void addMalbinaryEncodingDecodeElementFunction(AreaContext areaContext) throws IOException
   {
 		// int <area>_malbinary_decode_mal_element(
   	//	mal_decoder_t *decoder, void *cursor,

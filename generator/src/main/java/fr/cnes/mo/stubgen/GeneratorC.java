@@ -3516,10 +3516,13 @@ public class GeneratorC extends GeneratorBase
 	  StringBuilder buf = new StringBuilder();
 	  buf.append(opStageContext.qfOpStageNameL);
 	  buf.append("_add_encoding_length");
-	  buf.append("_").append(paramDetails.paramIndex);
+	  if (! paramDetails.isError)
+	  {
+		  buf.append("_").append(paramDetails.paramIndex);
+	  }
 	  String encodeFuncNameL = buf.toString();
 
-	  // int <qfop>_<stage|error>_add_encoding_length_<index>(
+	  // int <qfop>_<stage|error>_add_encoding_length[_<index>](
 	  //	mal_encoder_t *encoder, mal_element_holder_t *element,
 	  //	void * cursor);
 	  areaH.openFunctionPrototype("int", encodeFuncNameL, 3);
@@ -3528,7 +3531,7 @@ public class GeneratorC extends GeneratorBase
 	  areaH.addFunctionParameter("void *", "cursor", true);
 	  areaH.closeFunctionPrototype();
 
-	  // int <qfop>_<stage|error>_add_encoding_length_<index>(
+	  // int <qfop>_<stage|error>_add_encoding_length[_<index>](
 	  //	mal_encoder_t *encoder, mal_element_holder_t *element,
 	  //	void *cursor) {
 	  areaC.openFunction("int", encodeFuncNameL, 3);
@@ -3765,10 +3768,13 @@ public class GeneratorC extends GeneratorBase
 	  StringBuilder buf = new StringBuilder();
 	  buf.append(opStageContext.qfOpStageNameL);
 	  buf.append("_encode");
-	  buf.append("_").append(paramDetails.paramIndex);
+	  if (! paramDetails.isError)
+	  {
+		  buf.append("_").append(paramDetails.paramIndex);
+	  }
 	  String encodeFuncNameL = buf.toString();
 
-	  // int <qfop>_<stage|error>_encode_<index>(
+	  // int <qfop>_<stage|error>_encode[_<index>](
 	  //	mal_encoder_t *encoder, mal_element_holder_t *element,
 	  //	void * cursor);
 	  areaH.openFunctionPrototype("int", encodeFuncNameL, 3);
@@ -3777,7 +3783,7 @@ public class GeneratorC extends GeneratorBase
 	  areaH.addFunctionParameter("mal_element_holder_t *", "element", true);
 	  areaH.closeFunctionPrototype();
 
-	  // int <qfop>_<stage|error>_encode_<index>(
+	  // int <qfop>_<stage|error>_encode[_<index>](
 	  //	mal_encoder_t *encoder, mal_element_holder_t *element,
 	  //	void *cursor) {
 	  areaC.openFunction("int", encodeFuncNameL, 3);

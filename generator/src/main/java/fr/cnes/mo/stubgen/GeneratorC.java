@@ -2792,12 +2792,14 @@ public class GeneratorC extends GeneratorBase
   {
   	OpStageContext opStageCtxt = new OpStageContext(opContext, opStage, true, parameters);
   	addInteractionFunction(opStageCtxt);
+  	addInteractionGenericFunction(opStageCtxt);
   }
 
   private void addResultInteractionFunctions(OperationContext opContext, String opStage, List<TypeInfo> parameters) throws IOException
   {
   	OpStageContext opStageCtxt = new OpStageContext(opContext, opStage, false, parameters);
   	addInteractionFunction(opStageCtxt);
+  	addInteractionGenericFunction(opStageCtxt);
   }
   
   private void addInteractionFunction(OpStageContext opStageCtxt) throws IOException
@@ -2957,7 +2959,121 @@ public class GeneratorC extends GeneratorBase
     	}
     }
   }
-  
+
+  private void addInteractionGenericFunction(OpStageContext opStageCtxt) throws IOException
+  {
+	  // declare the function in the <area>.h file and define it in the <area>.c file
+	  CFileWriter areaH = opStageCtxt.opContext.serviceContext.areaContext.areaHContent;
+	  CFileWriter areaC = opStageCtxt.opContext.serviceContext.areaContext.areaC;
+	  areaC.addNewLine();
+	  StringBuilder buf;
+
+	  final String functionName = opStageCtxt.qfOpStageNameL + "_full";
+
+	  final int size = 2 + (opStageCtxt.isInit ? 1 : 2) + 7 + (opStageCtxt.parameters != null ? opStageCtxt.parameters.size() : 0);
+	  String[][] params = new String[size][];
+	  int i = 0;
+	  params[i++] = new String[]{ "mal_encoder_t *", "encoder" };
+	  params[i++] = new String[]{ "mal_endpoint_t *", "endpoint" };
+	  if (opStageCtxt.isInit)
+	  {
+		  params[i++] = new String[]{ "mal_uri_t *", "provider_uri" };
+	  }
+	  else
+	  {
+		  params[i++] = new String[]{ "mal_message_t *", "result_message" };
+		  params[i++] = new String[]{ "bool", "is_error_message" };
+	  }
+	  // for creating message
+	  params[i++] = new String[]{ "mal_blob_t *", "authentication_id" };
+	  params[i++] = new String[]{ "mal_qoslevel_t ", "qoslevel" };
+	  params[i++] = new String[]{ "mal_uinteger_t ", "priority" };
+	  params[i++] = new String[]{ "mal_identifier_list_t *", "domain" };
+	  params[i++] = new String[]{ "mal_identifier_t *", "network_zone" };
+	  params[i++] = new String[]{ "mal_sessiontype_t ", "session" };
+	  params[i++] = new String[]{ "mal_identifier_t *", "session_name" };
+	  // Effective parameters
+	  final List<TypeInfo> parameters = opStageCtxt.parameters;
+	  if (parameters != null)
+	  {
+		  for (int j = 0 ; j < parameters.size() ; j++)
+		  {
+			  params[i++] = new String[]{ "mal_element_holder_t *", "arg"+j };
+		  }
+	  }
+
+	  // int <area>_<service>_<operation>_<first stage>_full(mal_endpoint_t *endpoint, mal_message_t *message, 
+	  // init -> mal_uri_t *provider_uri
+	  // result-> mal_message_t *result_message, bool is_error_message
+	  // );
+	  areaH.openFunctionPrototype("int", functionName, (opStageCtxt.isInit ? 3 : 4));
+	  areaH.addFunctionParameters(params);
+	  areaH.closeFunctionPrototype();
+
+	  // int <area>_<service>_<operation>_<result stage>(mal_endpoint_t *endpoint, mal_message_t *init_message,
+	  // init -> mal_uri_t *provider_uri
+	  // result -> mal_message_t *result_message, bool is_error_message
+	  // )
+	  areaC.openFunction("int", functionName, (opStageCtxt.isInit ? 3 : 4));
+	  areaC.addFunctionParameters(params);
+	  areaC.openFunctionBody();
+
+	  areaC.addStatement("int rc = 0;");
+
+	  areaC.addStatement("void *cursor = mal_encoder_new_cursor(encoder);");
+
+	  areaC.addSingleLineComment("Length");
+	  if (parameters != null)
+	  {
+		  for (int j = 0 ; j < parameters.size() ; j++)
+		  {
+			  areaC.addSingleLineComment("Length of arg" + j);
+			  // TODO addInteractionParamGenericEncodingLength(areaC, opStageCtxt, paramDetails, varName);
+			  areaC.addStatement("if (rc < 0)",1);
+			  areaC.addStatement("return rc;",-1);
+		  }
+	  }
+
+	  areaC.addStatement("mal_message_t *message = mal_message_new(authentication_id, "
+			  + "qoslevel, priority, domain, "
+			  + "network_zone, session, session_name, "
+			  + "mal_encoder_cursor_get_length(encoder, cursor));");
+
+	  areaC.addStatement("mal_encoder_cursor_init("
+			  + "encoder, cursor, "
+			  + "mal_message_get_body(message), "
+			  + "mal_encoder_cursor_get_length(encoder, cursor), "
+			  + "mal_message_get_body_offset(message));");
+
+
+	  areaC.addSingleLineComment("Encoding");
+	  if (parameters != null)
+	  {
+		  for (int j = 0 ; j < parameters.size() ; j++)
+		  {
+			  areaC.addSingleLineComment("Encoding arg" + j);
+			  // TODO addInteractionParamGenericEncodingEncode(areaC, opStageCtxt, paramDetails, varName);
+			  areaC.addStatement("mal_encoder_cursor_assert(encoder, cursor);");
+			  areaC.addStatement("if (rc < 0)",1);
+			  areaC.addStatement("return rc;",-1);    	}
+	  }
+
+	  areaC.addSingleLineComment("Clean");
+	  areaC.addStatement("mal_encoder_cursor_destroy(encoder, cursor);");
+
+	  if (opStageCtxt.isInit)
+	  {
+		  areaC.addStatement("rc = " + opStageCtxt.qfOpStageNameL + "(endpoint, message, provider_uri);");
+	  }
+	  else
+	  {
+		  areaC.addStatement("rc = " + opStageCtxt.qfOpStageNameL + "(endpoint, message, result_message, is_error_message);");
+	  }
+
+	  areaC.addStatement("return rc;");
+	  areaC.closeFunctionBody();
+  }
+
   /**
    * Fill in the ParameterDetails structure from the paramType parameter.
    * paramType refers to a concrete type.
@@ -3506,7 +3622,24 @@ public class GeneratorC extends GeneratorBase
   	areaC.addStatement("return rc;");
   	areaC.closeFunctionBody();
   }
-  
+
+  private void addInteractionParamGenericEncodingLength(CFileWriter code, OpStageContext opStageContext, ParameterDetails paramDetails, String varName) throws IOException
+  {
+	  StringBuilder funcNameL = new StringBuilder();
+	  funcNameL.append(opStageContext.qfOpStageNameL);
+	  funcNameL.append("_add_encoding_length");
+	  if (! paramDetails.isError)
+	  {
+		  funcNameL.append("_").append(paramDetails.paramIndex);
+	  }
+	  // rc = <qfop>_<stage|error>_add_encoding_length[_<index>](element, encoder, cursor);
+	  // if (rc < 0)
+	  //    return rc;
+	  code.addStatement("rc = " + funcNameL.toString() + "(cursor, encoder," + varName + ");");
+	  code.addStatement("if (rc < 0)", 1);
+	  code.addStatement("return rc;", -1);
+  }
+
   private void addInteractionParamGenericEncodingLengthFunction(OpStageContext opStageContext, ParameterDetails paramDetails) throws IOException
   {
 	  final AreaContext areaContext = opStageContext.opContext.serviceContext.areaContext;
@@ -3757,6 +3890,23 @@ public class GeneratorC extends GeneratorBase
   	areaC.closeBlock();
   	areaC.addStatement("return rc;");
   	areaC.closeFunctionBody();
+  }
+
+  private void addInteractionParamGenericEncodingEncode(CFileWriter code, OpStageContext opStageContext, ParameterDetails paramDetails, String varName) throws IOException
+  {
+	  StringBuilder funcNameL = new StringBuilder();
+	  funcNameL.append(opStageContext.qfOpStageNameL);
+	  funcNameL.append("_encode");
+	  if (! paramDetails.isError)
+	  {
+		  funcNameL.append("_").append(paramDetails.paramIndex);
+	  }
+	  // rc = <qfop>_<stage|error>_encode[_<index>](element, encoder, cursor);
+	  // if (rc < 0)
+	  //    return rc;
+	  code.addStatement("rc = " + funcNameL.toString() + "(cursor, encoder," + varName + ");");
+	  code.addStatement("if (rc < 0)", 1);
+	  code.addStatement("return rc;", -1);
   }
 
   private void addInteractionParamGenericEncodingEncodeFunction(OpStageContext opStageContext, ParameterDetails paramDetails) throws IOException

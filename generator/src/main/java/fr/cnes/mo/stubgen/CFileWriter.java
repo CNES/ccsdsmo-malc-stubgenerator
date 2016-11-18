@@ -400,7 +400,18 @@ public class CFileWriter extends AbstractWriter {
   		out.append(", ");
   	}
   }
-  
+
+  public void addFunctionParameters(String[][] params) throws IOException
+  {
+	  final int size = params.length;
+	  for (int i = 0 ; i < size ; i++) {
+		  String paramType = params[i][0];
+		  String paramName = params[i][1];
+		  boolean last = (i == size - 1);
+		  addFunctionParameter(paramType, paramName, last);
+	  }
+  }
+
   public void openFunctionBody() throws IOException
   {
   	// ) {

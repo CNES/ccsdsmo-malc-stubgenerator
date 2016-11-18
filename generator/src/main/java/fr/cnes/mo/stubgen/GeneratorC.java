@@ -3315,6 +3315,8 @@ public class GeneratorC extends GeneratorBase
 			}
 			
 		}
+		// Generate for mal_element_holder_t
+		addInteractionParamGenericEncodingLengthFunction(opStageContext, paramDetails);
   }
   
   private void addInteractionParamEncodingLengthFunction(OpStageContext opStageContext, ParameterDetails paramDetails) throws IOException
@@ -3502,6 +3504,79 @@ public class GeneratorC extends GeneratorBase
   	areaC.closeBlock();
   	areaC.addStatement("return rc;");
   	areaC.closeFunctionBody();
+  }
+  
+  private void addInteractionParamGenericEncodingLengthFunction(OpStageContext opStageContext, ParameterDetails paramDetails) throws IOException
+  {
+	  final AreaContext areaContext = opStageContext.opContext.serviceContext.areaContext;
+	  CFileWriter areaH = areaContext.areaHContent;
+	  CFileWriter areaC = areaContext.areaC;
+	  areaC.addNewLine();
+	  StringBuilder buf = new StringBuilder();
+	  buf.append(opStageContext.qfOpStageNameL);
+	  buf.append("_add_encoding_length");
+	  buf.append("_").append(paramDetails.paramIndex);
+	  String encodeFuncNameL = buf.toString();
+
+	  // int <qfop>_<stage|error>_add_encoding_length_<index>(
+	  //	mal_encoder_t *encoder, mal_element_holder_t *element,
+	  //	void * cursor);
+	  areaH.openFunctionPrototype("int", encodeFuncNameL, 3);
+	  areaH.addFunctionParameter("mal_encoder_t *", "encoder", false);
+	  areaH.addFunctionParameter("mal_element_holder_t *", "element", false);
+	  areaH.addFunctionParameter("void *", "cursor", true);
+	  areaH.closeFunctionPrototype();
+
+	  // int <qfop>_<stage|error>_add_encoding_length_<index>(
+	  //	mal_encoder_t *encoder, mal_element_holder_t *element,
+	  //	void *cursor) {
+	  areaC.openFunction("int", encodeFuncNameL, 3);
+	  areaC.addFunctionParameter("mal_encoder_t *", "encoder", false);
+	  areaC.addFunctionParameter("mal_element_holder_t *", "element", false);
+	  areaC.addFunctionParameter("void *", "cursor", true);
+	  areaC.openFunctionBody();
+
+	  //	int rc = 0;
+	  //	switch (encoder->encoding_format_code) {
+	  //	case <FORMAT>_FORMAT_CODE: {
+	  // format specific code
+	  //		break;
+	  //	}
+	  //	default:
+	  //		rc = -1;
+	  //	}
+	  //	return rc;
+	  // }
+	  areaC.addStatement("int rc = 0;");
+	  areaC.addStatement("switch (encoder->encoding_format_code)");
+	  areaC.openBlock();
+	  if (generateTransportMalbinary || generateTransportMalsplitbinary)
+	  {
+		  if (generateTransportMalbinary)
+		  {
+			  areaC.addStatement("case " + transportMalbinary.toUpperCase() + "_FORMAT_CODE:");
+		  }
+		  if (generateTransportMalsplitbinary)
+		  {
+			  areaC.addStatement("case " + transportMalsplitbinary.toUpperCase() + "_FORMAT_CODE:");
+		  }
+		  areaC.openBlock();
+		  final String isPresent = "(element != NULL && element->presence_flag)";
+		  addMalbinaryEncodingLengthPresenceFlag(areaC, isPresent);
+		  areaC.addStatement("if (" + isPresent + ")");
+		  areaC.openBlock();
+
+		  addMalbinaryEncodingLengthElement(areaC, areaContext, "element");
+
+		  areaC.closeBlock();
+		  areaC.addStatement("break;");
+		  areaC.closeBlock();
+	  }
+	  areaC.addStatement("default:");
+	  areaC.addStatement("rc = -1;");
+	  areaC.closeBlock();
+	  areaC.addStatement("return rc;");
+	  areaC.closeFunctionBody();
   }
 
   private void addInteractionParamEncodingEncodeFunction(OpStageContext opStageContext, ParameterDetails paramDetails) throws IOException

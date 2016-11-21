@@ -2984,10 +2984,10 @@ public class GeneratorC extends GeneratorBase
   private void addInteractionGenericFunction(OpStageContext opStageCtxt) throws IOException
   {
 	  // declare the function in the <area>.h file and define it in the <area>.c file
-	  CFileWriter areaH = opStageCtxt.opContext.serviceContext.areaContext.areaHContent;
-	  CFileWriter areaC = opStageCtxt.opContext.serviceContext.areaContext.areaC;
+	  final AreaContext areaContext = opStageCtxt.opContext.serviceContext.areaContext;
+	  CFileWriter areaH = areaContext.areaHContent;
+	  CFileWriter areaC = areaContext.areaC;
 	  areaC.addNewLine();
-	  StringBuilder buf;
 
 	  final String functionName = opStageCtxt.qfOpStageNameL + "_full";
 
@@ -3048,10 +3048,14 @@ public class GeneratorC extends GeneratorBase
 	  {
 		  for (int j = 0 ; j < parameters.size() ; j++)
 		  {
-			  areaC.addSingleLineComment("Length of arg" + j);
-			  // TODO addInteractionParamGenericEncodingLength(areaC, opStageCtxt, paramDetails, varName);
-			  areaC.addStatement("if (rc < 0)",1);
-			  areaC.addStatement("return rc;",-1);
+			  final String argName = "arg" + j;
+			  areaC.addSingleLineComment("Length of " + argName);
+			  TypeReference ptype = parameters.get(j).getSourceType();
+			  ParameterDetails paramDetails = getParameterDetails(ptype);
+			  paramDetails.paramIndex = j;
+			  paramDetails.paramName = argName;
+			  paramDetails.paramType = ptype.getName().toLowerCase();
+			  addInteractionParamEncodingLength(opStageCtxt, paramDetails);
 		  }
 	  }
 
@@ -3072,11 +3076,16 @@ public class GeneratorC extends GeneratorBase
 	  {
 		  for (int j = 0 ; j < parameters.size() ; j++)
 		  {
-			  areaC.addSingleLineComment("Encoding arg" + j);
-			  // TODO addInteractionParamGenericEncodingEncode(areaC, opStageCtxt, paramDetails, varName);
+			  final String argName = "arg" + j;
+			  areaC.addSingleLineComment("Encoding " + argName);
+			  TypeReference ptype = parameters.get(j).getSourceType();
+			  ParameterDetails paramDetails = getParameterDetails(ptype);
+			  paramDetails.paramIndex = j;
+			  paramDetails.paramName = argName;
+			  paramDetails.paramType = ptype.getName().toLowerCase();
+			  addInteractionParamEncodingEncode(opStageCtxt, paramDetails);
 			  areaC.addStatement("mal_encoder_cursor_assert(encoder, cursor);");
-			  areaC.addStatement("if (rc < 0)",1);
-			  areaC.addStatement("return rc;",-1);    	}
+		  }
 	  }
 
 	  areaC.addSingleLineComment("Clean");
@@ -3444,28 +3453,85 @@ public class GeneratorC extends GeneratorBase
 		addInteractionParamGenericEncodingLengthFunction(opStageContext, paramDetails);
 		addInteractionParamGenericEncodingEncodeFunction(opStageContext, paramDetails);
   }
+
+  protected String getInteractionParamEncodingFunctionName(OpStageContext opStageContext, ParameterDetails paramDetails, String type) {
+	  StringBuilder buf = new StringBuilder();
+	  buf.append(opStageContext.qfOpStageNameL);
+	  buf.append(type);
+	  if (! paramDetails.isError)
+	  {
+		  buf.append("_").append(paramDetails.paramIndex);
+	  }
+	  if (paramDetails.isPolymorph || paramDetails.isError)
+	  {
+		  buf.append("_").append(paramDetails.qfTypeNameL);
+		  if (paramDetails.isList)
+		  {
+			  buf.append("_list");
+		  }
+	  }
+	  return buf.toString();
+  }
   
+  private void addInteractionParamEncodingLength(OpStageContext opStageContext, ParameterDetails paramDetails) throws IOException
+  {
+	  CFileWriter areaC = opStageContext.opContext.serviceContext.areaContext.areaC;
+
+	  String encodeFuncNameL = getInteractionParamEncodingFunctionName(opStageContext, paramDetails, "_add_encoding_length");
+	  String argName = paramDetails.paramName;
+	  String varType = paramDetails.paramType;
+	  final String prefix = "rc = " + encodeFuncNameL + "(encoder,";
+	  final String suffix = ",cursor);";
+	  if (paramDetails.isAbstract)
+	  {
+		  areaC.addStatement(prefix+argName+suffix);
+	  }
+	  else if (paramDetails.isList)
+	  {
+		  areaC.addStatement("if ("+argName+" != NULL && "+argName+"->presence_flag) {",1);
+		  areaC.addStatement(prefix+argName+"->value.list_value"+suffix, -1);
+		  areaC.addStatement("} else {", 1);
+		  areaC.addStatement(prefix+"NULL"+suffix, -1);
+		  areaC.addStatement("}");
+	  }
+	  else if (paramDetails.isAttribute)
+	  {
+		  areaC.addStatement("if ("+argName+" != NULL && "+argName+"->presence_flag) {",1);
+		  areaC.addStatement(prefix+"true,"+argName+"->value." + varType+"_value"+suffix, -1);
+		  areaC.addStatement("} else {", 1);
+		  areaC.addStatement(prefix+"false,0"+suffix, -1);
+		  areaC.addStatement("}");
+	  }
+	  else if (paramDetails.isComposite)
+	  {
+		  areaC.addStatement("if ("+argName+" != NULL && "+argName+"->presence_flag) {",1);
+		  areaC.addStatement(prefix+argName+"->value.composite_value"+suffix, -1);
+		  areaC.addStatement("} else {", 1);
+		  areaC.addStatement(prefix+"NULL"+suffix, -1);
+		  areaC.addStatement("}");
+	  }
+	  else if (paramDetails.isEnumeration)
+	  {
+		  areaC.addStatement("if ("+argName+" != NULL && "+argName+"->presence_flag) {",1);
+		  areaC.addStatement(prefix+"true,"+argName+"->value.enumerated_value"+suffix, -1);
+		  areaC.addStatement("} else {", 1);
+		  areaC.addStatement(prefix+"false,0"+suffix, -1);
+		  areaC.addStatement("}");
+	  }
+	  else
+	  {
+		  throw new IllegalStateException("unexpected type " + paramDetails);
+	  }
+	  areaC.addStatement("if (rc < 0)",1);
+	  areaC.addStatement("return rc;",-1);
+  }
+
   private void addInteractionParamEncodingLengthFunction(OpStageContext opStageContext, ParameterDetails paramDetails) throws IOException
   {
   	CFileWriter areaH = opStageContext.opContext.serviceContext.areaContext.areaHContent;
   	CFileWriter areaC = opStageContext.opContext.serviceContext.areaContext.areaC;
 		areaC.addNewLine();
-    StringBuilder buf = new StringBuilder();
-    buf.append(opStageContext.qfOpStageNameL);
-    buf.append("_add_encoding_length");
-    if (! paramDetails.isError)
-    {
-    	buf.append("_").append(paramDetails.paramIndex);
-    }
-    if (paramDetails.isPolymorph || paramDetails.isError)
-    {
-    	buf.append("_").append(paramDetails.qfTypeNameL);
-      if (paramDetails.isList)
-      {
-      	buf.append("_list");
-      }
-    }
-    String encodeFuncNameL = buf.toString();
+    String encodeFuncNameL = getInteractionParamEncodingFunctionName(opStageContext, paramDetails, "_add_encoding_length");
     
   	if (paramDetails.isAbstractAttribute && !paramDetails.isList)
   	{
@@ -3725,27 +3791,65 @@ public class GeneratorC extends GeneratorBase
 	  areaC.closeFunctionBody();
   }
 
+  private void addInteractionParamEncodingEncode(OpStageContext opStageContext, ParameterDetails paramDetails) throws IOException
+  {
+	  CFileWriter areaC = opStageContext.opContext.serviceContext.areaContext.areaC;
+
+	  String encodeFuncNameL = getInteractionParamEncodingFunctionName(opStageContext, paramDetails, "_encode");
+	  String argName = paramDetails.paramName;
+	  String varType = paramDetails.paramType;
+	  final String prefix = "rc = " + encodeFuncNameL + "(cursor,encoder,";
+	  final String suffix = ");";
+	  if (paramDetails.isAbstract)
+	  {
+		  areaC.addStatement(prefix+argName+suffix);
+	  }
+	  else if (paramDetails.isList)
+	  {
+		  areaC.addStatement("if ("+argName+" != NULL && "+argName+"->presence_flag) {",1);
+		  areaC.addStatement(prefix+argName+"->value.list_value"+suffix, -1);
+		  areaC.addStatement("} else {", 1);
+		  areaC.addStatement(prefix+"NULL"+suffix, -1);
+		  areaC.addStatement("}");
+	  }
+	  else if (paramDetails.isAttribute)
+	  {
+		  areaC.addStatement("if ("+argName+" != NULL && "+argName+"->presence_flag) {",1);
+		  areaC.addStatement(prefix+"true,"+argName+"->value." + varType+"_value"+suffix, -1);
+		  areaC.addStatement("} else {", 1);
+		  areaC.addStatement(prefix+"false,0"+suffix, -1);
+		  areaC.addStatement("}");
+	  }
+	  else if (paramDetails.isComposite)
+	  {
+		  areaC.addStatement("if ("+argName+" != NULL && "+argName+"->presence_flag) {",1);
+		  areaC.addStatement(prefix+argName+"->value.composite_value"+suffix, -1);
+		  areaC.addStatement("} else {", 1);
+		  areaC.addStatement(prefix+"NULL"+suffix, -1);
+		  areaC.addStatement("}");
+	  }
+	  else if (paramDetails.isEnumeration)
+	  {
+		  areaC.addStatement("if ("+argName+" != NULL && "+argName+"->presence_flag) {",1);
+		  areaC.addStatement(prefix+"true,"+argName+"->value.enumerated_value"+suffix, -1);
+		  areaC.addStatement("} else {", 1);
+		  areaC.addStatement(prefix+"false,0"+suffix, -1);
+		  areaC.addStatement("}");
+	  }
+	  else
+	  {
+		  throw new IllegalStateException("unexpected type " + paramDetails);
+	  }
+	  areaC.addStatement("if (rc < 0)",1);
+	  areaC.addStatement("return rc;",-1);
+  }
+
   private void addInteractionParamEncodingEncodeFunction(OpStageContext opStageContext, ParameterDetails paramDetails) throws IOException
   {
   	CFileWriter areaH = opStageContext.opContext.serviceContext.areaContext.areaHContent;
   	CFileWriter areaC = opStageContext.opContext.serviceContext.areaContext.areaC;
 		areaC.addNewLine();
-    StringBuilder buf = new StringBuilder();
-    buf.append(opStageContext.qfOpStageNameL);
-    buf.append("_encode");
-    if (! paramDetails.isError)
-    {
-    	buf.append("_").append(paramDetails.paramIndex);
-    }
-    if (paramDetails.isPolymorph || paramDetails.isError)
-    {
-    	buf.append("_").append(paramDetails.qfTypeNameL);
-      if (paramDetails.isList)
-      {
-      	buf.append("_list");
-      }
-    }
-    String encodeFuncNameL = buf.toString();
+    String encodeFuncNameL = getInteractionParamEncodingFunctionName(opStageContext, paramDetails, "_encode");
 
   	if (paramDetails.isAbstractAttribute && !paramDetails.isList)
   	{

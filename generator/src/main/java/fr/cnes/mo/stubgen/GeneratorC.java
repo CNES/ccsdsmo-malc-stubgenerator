@@ -5178,6 +5178,30 @@ public class GeneratorC extends GeneratorBase
 		String qfTypeNameL = null;
   	String paramName = null;
   	TypeReference type = null;
+
+  	@Override
+  	public String toString() {
+  		StringBuffer buf = new StringBuffer();
+  		buf.append(this.getClass());
+  		buf.append("{");
+  		buf.append("paramIndex = "+paramIndex);
+  		buf.append(", isLast = "+isLast);
+  		buf.append(", isPolymorph = "+isPolymorph);
+  		buf.append(", isError = "+isError);
+  		buf.append(", isPresenceFlag = "+isPresenceFlag);
+  		buf.append(", isAbstract = "+isAbstract);
+  		buf.append(", isAbstractAttribute = "+isAbstractAttribute);
+  		buf.append(", isAttribute = "+isAttribute);
+  		buf.append(", isComposite = "+isComposite);
+  		buf.append(", isEnumeration = "+isEnumeration);
+  		buf.append(", isList = "+isList);
+  		buf.append(", isPubSub = "+isPubSub);
+  		buf.append(", paramType = "+paramType);
+  		buf.append(", qfTypeNameL = "+qfTypeNameL);
+  		buf.append(", paramName = "+paramName);
+  		buf.append("}");
+  		return buf.toString();
+  	}
   }
   
   /**

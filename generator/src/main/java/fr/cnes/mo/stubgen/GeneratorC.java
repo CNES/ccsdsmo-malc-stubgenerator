@@ -1382,19 +1382,7 @@ public class GeneratorC extends GeneratorBase
     	  	}
     	  	else
     	  	{
-  	  			// build the fully qualified name of the field type for the C mapping (lower case)
-  	  	    // <area>_[<service>_]<field type>
-    	  		// attribute type <attribute> naturally gives a qualified name mal_<attribute>
-  	  	    StringBuilder buf = new StringBuilder();
-  	  	    buf.append(cfDetails.type.getArea().toLowerCase());
-  	  	    buf.append("_");
-  	  	    if (cfDetails.type.getService() != null)
-  	  	    {
-  	  	    	buf.append(cfDetails.type.getService().toLowerCase());
-  	  	    	buf.append("_");
-  	  	    }
-  	  	    buf.append(cfDetails.type.getName().toLowerCase());
-  	  	    cfDetails.qfTypeNameL = buf.toString();
+  	  	    cfDetails.qfTypeNameL = getTypeFQN(cfDetails.type);
 
   	  			if (cfDetails.type.isList())
   	  			{
@@ -1767,6 +1755,22 @@ public class GeneratorC extends GeneratorBase
   private MalbinaryEnumSize getEnumTypeMBSize(TypeReference type) throws IOException
   {
 		return getEnumTypeMBSize(type, null);
+  }
+
+  protected String getTypeFQN(TypeReference ptype) {
+	  // build the fully qualified name of the field type for the C mapping (lower case)
+	  // <area>_[<service>_]<field type>
+	  // attribute type <attribute> naturally gives a qualified name mal_<attribute>
+	  StringBuilder buf = new StringBuilder();
+	  buf.append(ptype.getArea().toLowerCase());
+	  buf.append("_");
+	  if (ptype.getService() != null)
+	  {
+		  buf.append(ptype.getService().toLowerCase());
+		  buf.append("_");
+	  }
+	  buf.append(ptype.getName().toLowerCase());
+	  return buf.toString();
   }
 
   private void addCompFieldMalbinaryEncoding(CompositeContext compCtxt, CompositeField element, CompositeFieldDetails cfDetails) throws IOException
@@ -3079,19 +3083,7 @@ public class GeneratorC extends GeneratorBase
    * paramType refers to a concrete type.
    */
   private void fillInteractionParamDetails(ParameterDetails paramDetails, TypeReference paramType) throws IOException {
-		// build the fully qualified name of the parameter type for the C mapping (lower case)
-		// <area>_[<service>_]<param type>
-		// attribute type <attribute> naturally gives a qualified name mal_<attribute>
-  	StringBuilder buf = new StringBuilder();
-		buf.append(paramType.getArea().toLowerCase());
-		buf.append("_");
-		if (paramType.getService() != null)
-		{
-			buf.append(paramType.getService().toLowerCase());
-			buf.append("_");
-		}
-		buf.append(paramType.getName().toLowerCase());
-		paramDetails.qfTypeNameL = buf.toString();
+		paramDetails.qfTypeNameL = getTypeFQN(paramType);
 		
 		if (paramType.isList())
 		{
@@ -4246,16 +4238,7 @@ public class GeneratorC extends GeneratorBase
 			}
 			// [else] if (element_holder->short_form == <AREA>_[<SERVICE>_]<TYPE>_SHORT_FORM) {
 			TypeReference ptype = key.getTypeReference(false);
-			StringBuilder buf = new StringBuilder();
-			buf.append(ptype.getArea().toLowerCase());
-			buf.append("_");
-			if (ptype.getService() != null)
-			{
-				buf.append(ptype.getService().toLowerCase());
-				buf.append("_");
-			}
-			buf.append(ptype.getName().toLowerCase());
-			String qfTypeNameL = buf.toString();
+			String qfTypeNameL = getTypeFQN(ptype);
 			String qfTypeNameU = qfTypeNameL.toUpperCase();
 
 			areaContext.areaC.addStatement((first ? "" : "else ") + "if (element_holder->short_form == " + qfTypeNameU + "_SHORT_FORM)");
@@ -4352,16 +4335,7 @@ public class GeneratorC extends GeneratorBase
 			}
 			// [else] if (element_holder->short_form == <AREA>_[<SERVICE>_]<TYPE>_SHORT_FORM) {
 			TypeReference ptype = key.getTypeReference(false);
-			StringBuilder buf = new StringBuilder();
-			buf.append(ptype.getArea().toLowerCase());
-			buf.append("_");
-			if (ptype.getService() != null)
-			{
-				buf.append(ptype.getService().toLowerCase());
-				buf.append("_");
-			}
-			buf.append(ptype.getName().toLowerCase());
-			String qfTypeNameL = buf.toString();
+			String qfTypeNameL = getTypeFQN(ptype);
 			String qfTypeNameU = qfTypeNameL.toUpperCase();
 
 			areaContext.areaC.addStatement((first ? "" : "else ") + "if (element_holder->short_form == " + qfTypeNameU + "_SHORT_FORM)");
@@ -4459,16 +4433,7 @@ public class GeneratorC extends GeneratorBase
 			}
 			// [else] if (element_holder->short_form == <AREA>_[<SERVICE>_]<TYPE>_SHORT_FORM) {
 			TypeReference ptype = key.getTypeReference(false);
-			StringBuilder buf = new StringBuilder();
-			buf.append(ptype.getArea().toLowerCase());
-			buf.append("_");
-			if (ptype.getService() != null)
-			{
-				buf.append(ptype.getService().toLowerCase());
-				buf.append("_");
-			}
-			buf.append(ptype.getName().toLowerCase());
-			String qfTypeNameL = buf.toString();
+			String qfTypeNameL = getTypeFQN(ptype);
 			String qfTypeNameU = qfTypeNameL.toUpperCase();
 
 			areaContext.areaC.addStatement((first ? "" : "else ") + "if (element_holder->short_form == " + qfTypeNameU + "_SHORT_FORM)");

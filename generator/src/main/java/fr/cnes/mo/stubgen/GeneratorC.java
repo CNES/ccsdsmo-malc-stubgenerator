@@ -1773,6 +1773,23 @@ public class GeneratorC extends GeneratorBase
 	  return buf.toString();
   }
 
+  protected ParameterDetails getParameterDetails(TypeReference ptype) {
+	  ParameterDetails paramDetails = new ParameterDetails();
+	  paramDetails.isError = /* FIXME */ false;
+	  paramDetails.isAttribute = isAttributeType(ptype);
+	  paramDetails.isAbstract = isAbstract(ptype);
+	  paramDetails.isComposite = isComposite(ptype);
+	  paramDetails.isList = ptype.isList();
+	  paramDetails.isAbstractAttribute = /* FIXME */ false;
+	  paramDetails.isEnumeration = isEnum(ptype);
+	  paramDetails.isPolymorph = /* FIXME */ false;
+	  paramDetails.isPresenceFlag = /* FIXME */ false;
+	  paramDetails.isPubSub = /* FIXME */ false;
+	  paramDetails.qfTypeNameL = getTypeFQN(ptype);
+	  paramDetails.type = ptype;
+	  return paramDetails;
+  }
+
   private void addCompFieldMalbinaryEncoding(CompositeContext compCtxt, CompositeField element, CompositeFieldDetails cfDetails) throws IOException
   {
   	addCompFieldMalbinaryEncodingLength(compCtxt, element, cfDetails);

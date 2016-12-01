@@ -1780,13 +1780,52 @@ public class GeneratorC extends GeneratorBase
 	  paramDetails.isAbstract = isAbstract(ptype);
 	  paramDetails.isComposite = isComposite(ptype);
 	  paramDetails.isList = ptype.isList();
-	  paramDetails.isAbstractAttribute = /* FIXME */ false;
+	  paramDetails.isAbstractAttribute = false;
 	  paramDetails.isEnumeration = isEnum(ptype);
 	  paramDetails.isPolymorph = /* FIXME */ false;
-	  paramDetails.isPresenceFlag = /* FIXME */ false;
+	  paramDetails.isPresenceFlag = false;
 	  paramDetails.isPubSub = /* FIXME */ false;
 	  paramDetails.qfTypeNameL = getTypeFQN(ptype);
 	  paramDetails.type = ptype;
+	  if (isAbstract(ptype))
+	  {
+		  paramDetails.isAbstract = true;
+		  // check for abstract Attribute type
+		  if (StdStrings.MAL.equals(ptype.getArea()) &&
+				  StdStrings.ATTRIBUTE.equals(ptype.getName()))
+		  {
+			  paramDetails.isAbstractAttribute = true;
+		  }
+		  if (paramDetails.isAbstractAttribute &&
+				  ! ptype.isList()) {
+			  paramDetails.isPresenceFlag = true;
+		  }
+	  }
+	  if (isAttributeType(ptype))
+	  {
+		  paramDetails.isAttribute = true;
+		  // fieldType is also <qfTypeNameL>_t, with an optional *
+		  paramDetails.paramType = getAttributeDetails(ptype).getTargetType();
+		  // if map type is not a pointer, declare the is_present field
+		  if (! paramDetails.paramType.endsWith("*"))
+		  {
+			  paramDetails.isPresenceFlag = true;
+		  }
+	  }
+	  else if (isEnum(ptype))
+	  {
+		  // compCtxt.holdsEnumField = true;
+		  paramDetails.isEnumeration = true;
+		  //	<qualified type>_t <field>;
+		  paramDetails.paramType = paramDetails.qfTypeNameL + "_t";
+		  paramDetails.isPresenceFlag = true;
+	  }
+	  else if (isComposite(ptype))
+	  {
+		  paramDetails.isComposite = true;
+		  //	<qualified field type>_t <field>;
+		  paramDetails.paramType = paramDetails.qfTypeNameL + "_t *";
+	  }
 	  return paramDetails;
   }
 
@@ -3494,12 +3533,20 @@ public class GeneratorC extends GeneratorBase
 		  areaC.addStatement(prefix+"NULL"+suffix, -1);
 		  areaC.addStatement("}");
 	  }
-	  else if (paramDetails.isAttribute)
+	  else if (paramDetails.isAttribute && paramDetails.isPresenceFlag)
 	  {
 		  areaC.addStatement("if ("+argName+" != NULL && "+argName+"->presence_flag) {",1);
 		  areaC.addStatement(prefix+"true,"+argName+"->value." + varType+"_value"+suffix, -1);
 		  areaC.addStatement("} else {", 1);
 		  areaC.addStatement(prefix+"false,0"+suffix, -1);
+		  areaC.addStatement("}");
+	  }
+	  else if (paramDetails.isAttribute && !paramDetails.isPresenceFlag)
+	  {
+		  areaC.addStatement("if ("+argName+" != NULL && "+argName+"->presence_flag) {",1);
+		  areaC.addStatement(prefix+argName+"->value." + varType+"_value"+suffix, -1);
+		  areaC.addStatement("} else {", 1);
+		  areaC.addStatement(prefix+"0"+suffix, -1);
 		  areaC.addStatement("}");
 	  }
 	  else if (paramDetails.isComposite)
@@ -3812,12 +3859,20 @@ public class GeneratorC extends GeneratorBase
 		  areaC.addStatement(prefix+"NULL"+suffix, -1);
 		  areaC.addStatement("}");
 	  }
-	  else if (paramDetails.isAttribute)
+	  else if (paramDetails.isAttribute && paramDetails.isPresenceFlag)
 	  {
 		  areaC.addStatement("if ("+argName+" != NULL && "+argName+"->presence_flag) {",1);
 		  areaC.addStatement(prefix+"true,"+argName+"->value." + varType+"_value"+suffix, -1);
 		  areaC.addStatement("} else {", 1);
 		  areaC.addStatement(prefix+"false,0"+suffix, -1);
+		  areaC.addStatement("}");
+	  }
+	  else if (paramDetails.isAttribute && !paramDetails.isPresenceFlag)
+	  {
+		  areaC.addStatement("if ("+argName+" != NULL && "+argName+"->presence_flag) {",1);
+		  areaC.addStatement(prefix+argName+"->value." + varType+"_value"+suffix, -1);
+		  areaC.addStatement("} else {", 1);
+		  areaC.addStatement(prefix+"0"+suffix, -1);
 		  areaC.addStatement("}");
 	  }
 	  else if (paramDetails.isComposite)

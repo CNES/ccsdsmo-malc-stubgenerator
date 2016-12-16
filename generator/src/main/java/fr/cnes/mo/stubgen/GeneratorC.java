@@ -324,7 +324,7 @@ public class GeneratorC extends GeneratorBase
       areaContext.areaH.addNewLine();
 
       // define the generic decoding function for the area (it is actually generic for the application)
-      addGenericParamDecodingFunctions(areaContext);
+      addGenericParamXcodingFunctions(areaContext);
       
       // write the standard area identifiers
       comment = "standard area identifiers";
@@ -4351,7 +4351,7 @@ public class GeneratorC extends GeneratorBase
   	areaC.closeFunctionBody();
   }
 
-  private void addGenericParamDecodingFunctions(AreaContext areaContext) throws IOException
+  private void addGenericParamXcodingFunctions(AreaContext areaContext) throws IOException
   {
   	if (generateTransportMalbinary)
   	{

@@ -3194,6 +3194,7 @@ public class GeneratorC extends GeneratorBase
   {
   	addInteractionParamEncodingFunctions(opStageContext, paramDetails);
   	addInteractionParamEncodingDecodeFunction(opStageContext, paramDetails);
+  	addInteractionParamGenericDecodingFunction(opStageContext, paramDetails);
   }
 
   private void addInteractionParamEncodingFunctions(OpStageContext opStageContext, ParameterDetails paramDetails) throws IOException
@@ -4360,6 +4361,81 @@ public class GeneratorC extends GeneratorBase
   	areaC.closeFunctionBody();
   }
 
+  /**
+   * Generate the function to decode a positionnal element into mal_element_t.
+   * <pre>
+   * int &lt;qfop&gt;_&lt;stage&gt;_decode[_&lt;index&gt;]_mal_element(
+   *    void *cursor,
+   *    mal_decoder_t *decoder,
+   *    mal_element_holder_t *element_holder)
+   * </pre>
+   */
+  private void addInteractionParamGenericDecodingFunction(OpStageContext opStageContext, ParameterDetails paramDetails) throws IOException
+  {
+  	CFileWriter areaH = opStageContext.opContext.serviceContext.areaContext.areaHContent;
+  	CFileWriter areaC = opStageContext.opContext.serviceContext.areaContext.areaC;
+		areaC.addNewLine();
+    StringBuilder buf = new StringBuilder();
+    buf.append(opStageContext.qfOpStageNameL);
+    buf.append("_decode");
+    if (! paramDetails.isError)
+    {
+    	buf.append("_").append(paramDetails.paramIndex);
+    }
+    String decodeFuncNameLSub = buf.toString();
+    buf.append("_mal_element");
+    String decodeFuncNameL = buf.toString();
+    
+	// int <qfop>_<stage|error>_decode[_<index>]_mal_element(
+	//	void *cursor,
+	//	mal_decoder_t *decoder, mal_element_holder_t *element_holder);
+	areaH.openFunctionPrototype("int", decodeFuncNameL, 3);
+	areaH.addFunctionParameter("void *", "cursor", false);
+	areaH.addFunctionParameter("mal_decoder_t *", "decoder", false);
+	areaH.addFunctionParameter("mal_element_holder_t *", "element_holder", true);
+	areaH.closeFunctionPrototype();
+
+	// int <qfop>_<stage|error>_decode[_<index>]_mal_element(
+	//	void *cursor,
+	//	mal_decoder_t *decoder, mal_element_holder_t *element_holder) {
+	areaC.openFunction("int", decodeFuncNameL, 3);
+	areaC.addFunctionParameter("void *", "cursor", false);
+	areaC.addFunctionParameter("mal_decoder_t *", "decoder", false);
+	areaC.addFunctionParameter("mal_element_holder_t *", "element_holder", true);
+	areaC.openFunctionBody();
+
+  	areaC.addStatement("int rc = 0;");
+
+  	if (paramDetails.isAbstractAttribute && !paramDetails.isList)
+  	{
+  		areaC.addSingleLineComment("TODO");
+  	}
+  	else if (paramDetails.isAbstract)
+  	{
+  		areaC.addStatement("rc = " + decodeFuncNameLSub + "(cursor, decoder, element_holder);");
+	}
+	else if (paramDetails.isPresenceFlag)
+	{
+	  	areaC.addStatement("union mal_element_t value;");
+	  	areaC.addStatement("bool presence_flag;");
+  		areaC.addStatement("rc = " + decodeFuncNameLSub + "(cursor, decoder, &presence_flag, (void*)&value.composite_value);");
+  		areaC.addStatement("mal_element_holder_set_presence_flag(element_holder, presence_flag);");
+  		areaC.addStatement("mal_element_holder_set_value(element_holder, value);");
+  		areaC.addStatement("mal_element_holder_set_short_form(element_holder, " + paramDetails.getShortForm() + ");");
+  	}
+	else
+	{
+	  	areaC.addStatement("union mal_element_t value;");
+  		areaC.addStatement("rc = " + decodeFuncNameLSub + "(cursor, decoder, (void*)&value.composite_value);");
+  		areaC.addStatement("mal_element_holder_set_presence_flag(element_holder, ((void*)value.composite_value != NULL));");
+  		areaC.addStatement("mal_element_holder_set_value(element_holder, value);");
+  		areaC.addStatement("mal_element_holder_set_short_form(element_holder, " + paramDetails.getShortForm() + ");");
+  	}
+    
+  	areaC.addStatement("return rc;");
+  	areaC.closeFunctionBody();
+  }
+    
   private void addGenericParamXcodingFunctions(AreaContext areaContext) throws IOException
   {
   	if (generateTransportMalbinary)

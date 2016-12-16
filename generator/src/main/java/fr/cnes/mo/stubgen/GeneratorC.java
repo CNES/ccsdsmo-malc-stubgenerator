@@ -3020,6 +3020,9 @@ public class GeneratorC extends GeneratorBase
     }
   }
 
+  /**
+   * Generate "_full" function to allow operation initialisation from single call.
+   */
   private void addInteractionGenericFunction(OpStageContext opStageCtxt) throws IOException
   {
 	  // declare the function in the <area>.h file and define it in the <area>.c file
@@ -3070,7 +3073,7 @@ public class GeneratorC extends GeneratorBase
 	  areaH.addFunctionParameters(params);
 	  areaH.closeFunctionPrototype();
 
-	  // int <area>_<service>_<operation>_<result stage>(mal_endpoint_t *endpoint, mal_message_t *init_message,
+	  // int <area>_<service>_<operation>_<result stage>_full(mal_endpoint_t *endpoint, mal_message_t *init_message,
 	  // init -> mal_uri_t *provider_uri
 	  // result -> mal_message_t *result_message, bool is_error_message
 	  // )
@@ -4151,6 +4154,14 @@ public class GeneratorC extends GeneratorBase
 	  areaC.closeFunctionBody();
   }
 
+  /**
+   * Generate the function to decode a positionnal element.
+   * <pre>
+   * int &lt;qfop&gt;_&lt;stage&gt;_decode[_&lt;index&gt;](
+   *    void *cursor,
+   *    mal_decoder_t *decoder, ...)
+   * </pre>
+   */
   private void addInteractionParamEncodingDecodeFunction(OpStageContext opStageContext, ParameterDetails paramDetails) throws IOException
   {
   	CFileWriter areaH = opStageContext.opContext.serviceContext.areaContext.areaHContent;

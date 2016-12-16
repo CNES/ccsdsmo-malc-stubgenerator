@@ -3708,8 +3708,7 @@ public class GeneratorC extends GeneratorBase
     	{
     		if (paramDetails.isPolymorph)
     		{
-    			String shortForm = paramDetails.qfTypeNameL.toUpperCase() +
-    					(paramDetails.isList ? "_LIST_SHORT_FORM" : "_SHORT_FORM");
+    			String shortForm = paramDetails.getShortForm();
     			addMalbinaryEncodingLengthShortForm(areaC, shortForm);
     		}
     		if (paramDetails.isAttribute)
@@ -4023,8 +4022,7 @@ public class GeneratorC extends GeneratorBase
     	{
     		if (paramDetails.isPolymorph)
     		{
-    			String shortForm = paramDetails.qfTypeNameL.toUpperCase() +
-    					(paramDetails.isList ? "_LIST_SHORT_FORM" : "_SHORT_FORM");
+    			String shortForm = paramDetails.getShortForm();
     			addMalbinaryEncodingEncodeShortForm(areaC, shortForm);
     		}
     		if (paramDetails.isAttribute)
@@ -5338,6 +5336,11 @@ public class GeneratorC extends GeneratorBase
   	String paramName = null;
   	TypeReference type = null;
 
+  	public String getShortForm() {
+		return this.qfTypeNameL.toUpperCase() +
+				(this.isList ? "_LIST_SHORT_FORM" : "_SHORT_FORM");
+  	}
+  	
   	@Override
   	public String toString() {
   		StringBuffer buf = new StringBuffer();

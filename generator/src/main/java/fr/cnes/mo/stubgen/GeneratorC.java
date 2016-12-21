@@ -3069,7 +3069,7 @@ public class GeneratorC extends GeneratorBase
 	  // init -> mal_uri_t *provider_uri
 	  // result-> mal_message_t *result_message, bool is_error_message
 	  // );
-	  areaH.openFunctionPrototype("int", functionName, (opStageCtxt.isInit ? 3 : 4));
+	  areaH.openFunctionPrototype("int", functionName, size);
 	  areaH.addFunctionParameters(params);
 	  areaH.closeFunctionPrototype();
 
@@ -3077,7 +3077,7 @@ public class GeneratorC extends GeneratorBase
 	  // init -> mal_uri_t *provider_uri
 	  // result -> mal_message_t *result_message, bool is_error_message
 	  // )
-	  areaC.openFunction("int", functionName, (opStageCtxt.isInit ? 3 : 4));
+	  areaC.openFunction("int", functionName, size);
 	  areaC.addFunctionParameters(params);
 	  areaC.openFunctionBody();
 

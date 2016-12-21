@@ -490,9 +490,11 @@ public class GeneratorC extends GeneratorBase
     	{
     		generatePubSubEncodingRelatedParameters(opContext, "update", operation.getUpdateTypes());
     		addRegisterFunction(opContext, "register");
+    		addXregisterGenericFunction(opContext, "register");
     		addPublishRegisterFunction(opContext, "publish_register");
     		addPublishFunction(opContext, "publish", operation.getUpdateTypes());
     		addDeregisterFunction(opContext, "deregister");
+    		addXregisterGenericFunction(opContext, "deregister");
     		addPublishDeregisterFunction(opContext, "publish_deregister");
     		OperationType opType = operation.getOriginalOp();
     		if (opType == null || ! (opType instanceof PubSubOperationType))
@@ -3136,6 +3138,113 @@ public class GeneratorC extends GeneratorBase
 	  if (opStageCtxt.isInit)
 	  {
 		  areaC.addStatement("rc = " + opStageCtxt.qfOpStageNameL + "(endpoint, message, provider_uri);");
+	  }
+	  else
+	  {
+		  areaC.addStatement("rc = " + opStageCtxt.qfOpStageNameL + "(endpoint, message, result_message, is_error_message);");
+	  }
+
+	  areaC.addStatement("return rc;");
+	  areaC.closeFunctionBody();
+  }
+
+  /**
+   * Generate "_full" function to allow register/deregister from single call.
+   */
+  private void addXregisterGenericFunction(OperationContext opContext, String opStage) throws IOException
+  {
+	  OpStageContext opStageCtxt = new OpStageContext(opContext, opStage, true, null);
+	  addXregisterGenericFunction(opStageCtxt);
+  }
+
+  /**
+   * Generate "_full" function to allow register/deregister from single call.
+   */
+  private void addXregisterGenericFunction(OpStageContext opStageCtxt) throws IOException
+  {
+	  // declare the function in the <area>.h file and define it in the <area>.c file
+	  final AreaContext areaContext = opStageCtxt.opContext.serviceContext.areaContext;
+	  CFileWriter areaH = areaContext.areaHContent;
+	  CFileWriter areaC = areaContext.areaC;
+	  areaC.addNewLine();
+
+	  final String functionName = opStageCtxt.qfOpStageNameL + "_full";
+
+	  final int size = 2 + (opStageCtxt.isInit ? 1 : 2) + 7 + 1;
+	  String[][] params = new String[size][];
+	  int i = 0;
+	  params[i++] = new String[]{ "mal_encoder_t *", "encoder" };
+	  params[i++] = new String[]{ "mal_endpoint_t *", "endpoint" };
+	  if (opStageCtxt.isInit)
+	  {
+		  params[i++] = new String[]{ "mal_uri_t *", "broker_uri" };
+	  }
+	  else
+	  {
+		  params[i++] = new String[]{ "mal_message_t *", "result_message" };
+		  params[i++] = new String[]{ "bool", "is_error_message" };
+	  }
+	  // for creating message
+	  params[i++] = new String[]{ "mal_blob_t *", "authentication_id" };
+	  params[i++] = new String[]{ "mal_qoslevel_t ", "qoslevel" };
+	  params[i++] = new String[]{ "mal_uinteger_t ", "priority" };
+	  params[i++] = new String[]{ "mal_identifier_list_t *", "domain" };
+	  params[i++] = new String[]{ "mal_identifier_t *", "network_zone" };
+	  params[i++] = new String[]{ "mal_sessiontype_t ", "session" };
+	  params[i++] = new String[]{ "mal_identifier_t *", "session_name" };
+	  // Effective parameter
+	  params[i++] = new String[]{ "mal_element_holder_t *", "arg" };
+
+	  // int <area>_<service>_<operation>_<first stage>_full(mal_endpoint_t *endpoint, mal_message_t *message, 
+	  // init -> mal_uri_t *provider_uri
+	  // result-> mal_message_t *result_message, bool is_error_message
+	  // );
+	  areaH.openFunctionPrototype("int", functionName, size);
+	  areaH.addFunctionParameters(params);
+	  areaH.closeFunctionPrototype();
+
+	  // int <area>_<service>_<operation>_<result stage>_full(mal_endpoint_t *endpoint, mal_message_t *init_message,
+	  // init -> mal_uri_t *provider_uri
+	  // result -> mal_message_t *result_message, bool is_error_message
+	  // )
+	  areaC.openFunction("int", functionName, size);
+	  areaC.addFunctionParameters(params);
+	  areaC.openFunctionBody();
+
+	  areaC.addStatement("int rc = 0;");
+
+	  areaC.addStatement("mal_subscription_t *subscription = (mal_subscription_t *)arg->value.composite_value;");
+	  
+	  areaC.addStatement("void *cursor = mal_encoder_new_cursor(encoder);");
+
+	  areaC.addSingleLineComment("Length");
+	  areaC.addStatement("rc = mal_register_add_encoding_length(encoder, subscription, cursor);");
+	  areaC.addStatement("if (rc < 0)", 1);
+	  areaC.addStatement("return rc;", -1);
+
+	  areaC.addStatement("mal_message_t *message = mal_message_new(authentication_id, "
+			  + "qoslevel, priority, domain, "
+			  + "network_zone, session, session_name, "
+			  + "mal_encoder_cursor_get_length(encoder, cursor));");
+
+	  areaC.addStatement("mal_encoder_cursor_init("
+			  + "encoder, cursor, "
+			  + "mal_message_get_body(message), "
+			  + "mal_encoder_cursor_get_length(encoder, cursor), "
+			  + "mal_message_get_body_offset(message));");
+
+
+	  areaC.addSingleLineComment("Encoding");
+	  areaC.addStatement("rc = mal_register_encode(cursor, encoder, subscription);");
+	  areaC.addStatement("if (rc < 0)", 1);
+	  areaC.addStatement("return rc;", -1);
+
+	  areaC.addSingleLineComment("Clean");
+	  areaC.addStatement("mal_encoder_cursor_destroy(encoder, cursor);");
+
+	  if (opStageCtxt.isInit)
+	  {
+		  areaC.addStatement("rc = " + opStageCtxt.qfOpStageNameL + "(endpoint, message, broker_uri);");
 	  }
 	  else
 	  {

@@ -33,6 +33,7 @@ import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -506,13 +507,8 @@ public class GeneratorC extends GeneratorBase
     {
     	// declare the errors
     	processOpErrors(opContext, errors);
-    	
-    	// generate the coding functions for the error extra information
-    	TypeReference errorType = getOpErrorTypes(errors);
-    	if (errorType != null)
-    	{
-    		addInteractionErrorXcodingFunctions(opContext, errorType);
-    	}
+
+    	addInteractionErrorXcodingFunctions(opContext, errors);
     }
   }
   
@@ -547,7 +543,7 @@ public class GeneratorC extends GeneratorBase
   	}
   }
   
-  protected TypeReference getOpErrorTypes(OperationErrorList errors)
+  protected List<TypeReference> getOpErrorTypes(OperationErrorList errors)
   {
   	// error management is not optimal here
   	// we must generate encoding functions for all possible types, and an abstract decoding function.
@@ -562,7 +558,7 @@ public class GeneratorC extends GeneratorBase
   		return null;
   	}
   	
-  	TypeReference opErrorType = null;
+  	List<TypeReference> opErrorTypes = new ArrayList<TypeReference>();
   	
   	for (Object error : errorList)
   	{
@@ -581,23 +577,26 @@ public class GeneratorC extends GeneratorBase
   		}
   		if (errorType != null)
   		{
-  			if (opErrorType == null)
-  			{
-  				opErrorType = errorType.getType();
-  			}
-  			else
-  			{
-  				// at least 2 types declared, return MAL::Element
-  				opErrorType = new TypeReference();
-  				opErrorType.setArea(StdStrings.MAL);
-  				opErrorType.setService(null);
-  				opErrorType.setName(StdStrings.ELEMENT);
-  				opErrorType.setList(false);
-  				return opErrorType;
-  			}
+			// Check that this type is not already in the list
+			boolean contains = false;
+			TypeReference errorTypeRef = errorType.getType();
+			for (TypeReference typeReference : opErrorTypes) {
+				// Test equality of the references
+				if (typeReference == errorTypeRef)
+					// instance equality
+					contains = true;
+				else if (typeReference.isList() == errorTypeRef.isList() &&
+						Objects.equals(typeReference.getArea(), errorTypeRef.getArea()) &&
+						Objects.equals(typeReference.getService(), errorTypeRef.getService()) &&
+						Objects.equals(typeReference.getName(), errorTypeRef.getName()))
+					// Values equality
+					contains = true;
+			}
+			if (!contains)
+				opErrorTypes.add(errorTypeRef);
   		}
   	}
-  	return opErrorType;
+	return opErrorTypes;
   }
   
   @Override
@@ -3027,25 +3026,28 @@ public class GeneratorC extends GeneratorBase
   	addInteractionParamEncodingEncodeFunction(opStageContext, paramDetails);
   }
   
-  private void addInteractionErrorXcodingFunctions(OperationContext opContext, TypeReference errorType) throws IOException
+  private void addInteractionErrorXcodingFunctions(OperationContext opContext, OperationErrorList errors) throws IOException
   {
   	// the algorithm reuses the standard generation functions for operation parameters
   	// we must fill in the expected data structures, as it is done in addInteractionFunction
 
-  	OpStageContext opStageCtxt = new OpStageContext(opContext, "error", false, null);
-  	addInteractionErrorEncodingFunctions(opStageCtxt, errorType);
-  	
-  	if (StdStrings.MAL.equals(errorType.getArea()) &&
-  			StdStrings.ELEMENT.equals(errorType.getName()) &&
-  			!errorType.isList())
-  	{
-  		// default case, also generate MAL::Attribute encoding functions
-  		TypeReference attType = new TypeReference();
-  		attType.setArea(StdStrings.MAL);
-  		attType.setName(StdStrings.ATTRIBUTE);
-    	addInteractionErrorEncodingFunctions(opStageCtxt, attType);
-  	}
-  	
+	OpStageContext opStageCtxt = new OpStageContext(opContext, "error", false, null);
+	List<TypeReference> errorTypes = getOpErrorTypes(errors);
+	for (TypeReference errorType : errorTypes) {
+		addInteractionErrorEncodingFunctions(opStageCtxt, errorType);
+
+		if (StdStrings.MAL.equals(errorType.getArea()) &&
+				StdStrings.ELEMENT.equals(errorType.getName()) &&
+				!errorType.isList())
+		{
+			// default case, also generate MAL::Attribute encoding functions
+			TypeReference attType = new TypeReference();
+			attType.setArea(StdStrings.MAL);
+			attType.setName(StdStrings.ATTRIBUTE);
+			addInteractionErrorEncodingFunctions(opStageCtxt, attType);
+		}
+	}
+
   	// decoding an error is similar to decoding a MAL::Element
 		ParameterDetails paramDetails = new ParameterDetails();
 		paramDetails.type = new TypeReference();

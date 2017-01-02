@@ -581,12 +581,15 @@ public class GeneratorC extends GeneratorBase
 			boolean contains = false;
 			TypeReference errorTypeRef = errorType.getType();
 			for (TypeReference typeReference : opErrorTypes) {
+				// Test equality of the references
 				if (typeReference == errorTypeRef)
+					// instance equality
 					contains = true;
-				if (typeReference.isList() == errorTypeRef.isList() &&
+				else if (typeReference.isList() == errorTypeRef.isList() &&
 						Objects.equals(typeReference.getArea(), errorTypeRef.getArea()) &&
 						Objects.equals(typeReference.getService(), errorTypeRef.getService()) &&
 						Objects.equals(typeReference.getName(), errorTypeRef.getName()))
+					// Values equality
 					contains = true;
 			}
 			if (!contains)

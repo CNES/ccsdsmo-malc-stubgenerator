@@ -4002,7 +4002,7 @@ public class GeneratorC extends GeneratorBase
 
   private void addMalbinaryEncodingEncodeElement(CFileWriter code, AreaContext areaContext, String varName) throws IOException
   {
-	  //        rc = <area>_malbinary_add_mal_element_encoding_length(element, encoder, cursor);
+	  //        rc = <area>_malbinary_encode_mal_element(encoder, cursor, element);
 	  //        if (rc < 0)
 	  //          return rc;
 	  code.addStatement("rc = " + areaContext.areaNameL + "_" + transportMalbinary + "_encode_mal_element(encoder, cursor, " + varName + ");");
@@ -4111,7 +4111,7 @@ public class GeneratorC extends GeneratorBase
 
   private void addMalbinaryEncodingDecodeElement(CFileWriter code, AreaContext areaContext, String varName) throws IOException
   {
-	  //        rc = <area>_malbinary_add_mal_element_encoding_length(element, encoder, cursor);
+	  //        rc = <area>_malbinary_decode_mal_element(decoder, cursor, element);
 	  //        if (rc < 0)
 	  //          return rc;
 	  code.addStatement("rc = " + areaContext.areaNameL + "_" + transportMalbinary + "_decode_mal_element(decoder, cursor, "+ varName + ");");

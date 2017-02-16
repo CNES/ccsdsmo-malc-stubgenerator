@@ -3920,8 +3920,6 @@ public class GeneratorC extends GeneratorBase
 		areaContext.areaC.openFunctionBody();
 
 		//	int rc = 0;
-		//  rc = mal_encoder_encode_short_form(self, cursor, element_holder->short_form);
-		//	if (rc < 0) return rc;
 		areaContext.areaC.addStatement("int rc = 0;");
 		
 		areaContext.areaC.addSingleLineComment("Encoding abstract mal_element require encoding short form");
@@ -3964,13 +3962,11 @@ public class GeneratorC extends GeneratorBase
 			}
 			else if (isComposite(ptype))
 			{
-				// FIXME addMalbinaryEncodingLengthComposite(areaContext.areaC, "element_holder->value.composite_value", qfTypeNameL, true);
 				addMalbinaryEncodingLengthComposite(areaContext.areaC, "element_holder->value.composite_value", qfTypeNameL);
 			}
 			else if (isEnum(ptype))
 			{
 				MalbinaryEnumSize enumMBSize = getEnumTypeMBSize(ptype);
-				// FIXME addMalbinaryEncodingLengthEnumeration(areaContext.areaC, "element_holder->value.enumerated_value", qfTypeNameL, enumMBSize);
 				addMalbinaryEncodingLengthEnumeration(areaContext.areaC, "element_holder->value.enumerated_value", enumMBSize);
 			}
 			else
@@ -3985,7 +3981,6 @@ public class GeneratorC extends GeneratorBase
 			// }
 			areaContext.areaC.addStatement((first ? "" : "else ") + "if (element_holder->short_form == " + qfTypeNameU + "_LIST_SHORT_FORM)");
 			areaContext.areaC.openBlock();
-			// FIXME addMalbinaryEncodingLengthList(areaContext.areaC, "element_holder->value.list_value", qfTypeNameL, true);
 			addMalbinaryEncodingLengthList(areaContext.areaC, "element_holder->value.list_value", qfTypeNameL);
 			areaContext.areaC.closeBlock();
 			
@@ -4035,7 +4030,7 @@ public class GeneratorC extends GeneratorBase
 		areaContext.areaC.addStatement("int rc = 0;");
 
 		areaContext.areaC.addSingleLineComment("Encoding abstract mal_element require encoding short form");
-		//  rc = mal_encoder_encode_short_form(self, cursor, element_holder->short_form);
+		//  rc = mal_encoder_encode_short_form(encoder, cursor, element_holder->short_form);
 		//	if (rc < 0) return rc;
 		areaContext.areaC.addStatement("rc = mal_encoder_encode_short_form(encoder, cursor, element_holder->short_form);");
 		areaContext.areaC.addStatement("if (rc < 0)", 1);
@@ -4073,13 +4068,11 @@ public class GeneratorC extends GeneratorBase
 			}
 			else if (isComposite(ptype))
 			{
-				// FIXME addMalbinaryEncodingEncodeComposite(areaContext.areaC, "element_holder->value.composite_value", qfTypeNameL, true);
 				addMalbinaryEncodingEncodeComposite(areaContext.areaC, "element_holder->value.composite_value", qfTypeNameL);
 			}
 			else if (isEnum(ptype))
 			{
 				MalbinaryEnumSize enumMBSize = getEnumTypeMBSize(ptype);
-				// FIXME addMalbinaryEncodingEncodeEnumeration(areaContext.areaC, "element_holder->value.enumerated_value", qfTypeNameL, enumMBSize);
 				addMalbinaryEncodingEncodeEnumeration(areaContext.areaC, "element_holder->value.enumerated_value", enumMBSize);
 			}
 			else
@@ -4094,7 +4087,6 @@ public class GeneratorC extends GeneratorBase
 			// }
 			areaContext.areaC.addStatement((first ? "" : "else ") + "if (element_holder->short_form == " + qfTypeNameU + "_LIST_SHORT_FORM)");
 			areaContext.areaC.openBlock();
-			// FIXME addMalbinaryEncodingEncodeList(areaContext.areaC, "element_holder->value.list_value", qfTypeNameL, true);
 			addMalbinaryEncodingEncodeList(areaContext.areaC, "element_holder->value.list_value", qfTypeNameL);
 			areaContext.areaC.closeBlock();
 			

@@ -2547,7 +2547,7 @@ public class GeneratorC extends GeneratorBase
   private void addMalbinaryEncodingLengthEnumeration(CFileWriter codeLength, String varName, MalbinaryEnumSize enumMBSize) throws IOException
   {
   	//		rc = mal_encoder_add_[small|medium|large]_enum_encoding_length(encoder, <element>, cursor);
-		//		if (rc < 0) return rc;
+  	//		if (rc < 0) return rc;
   	codeLength.addStatement("rc = mal_encoder_add_" + enumMBSize.getCgenPrefix() + "_enum_encoding_length(encoder, " + varName + ", cursor);");
   	codeLength.addStatement("if (rc < 0)", 1);
   	codeLength.addStatement("return rc;", -1);

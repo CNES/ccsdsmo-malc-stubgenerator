@@ -3824,10 +3824,7 @@ public class GeneratorC extends GeneratorBase
     		{
     			isPolymorphic = true;
     			// use a generic decoding function
-    			// rc = <area>_malbinary_decode_mal_element(decoder, cursor, element_holder);
-    			areaC.addStatement("rc = " + opStageContext.opContext.serviceContext.areaContext.areaNameL + "_" + transportMalbinary + "_decode_mal_element(decoder, cursor, element_holder);");
-    			areaC.addStatement("if (rc < 0)", 1);
-    			areaC.addStatement("return rc;", -1);
+    			addMalbinaryEncodingDecodeElement(areaC, opStageContext.opContext.serviceContext.areaContext, "element_holder");
     		}
     	}
     	else if (paramDetails.isAttribute)
@@ -3885,11 +3882,244 @@ public class GeneratorC extends GeneratorBase
   {
   	if (generateTransportMalbinary)
   	{
-  		addMalbinaryEncodingDecodeElement(areaContext);
+  		addMalbinaryEncodingLengthElementFunction(areaContext);
+  		addMalbinaryEncodingEncodeElementFunction(areaContext);
+  		addMalbinaryEncodingDecodeElementFunction(areaContext);
   	}
   }
 
-  private void addMalbinaryEncodingDecodeElement(AreaContext areaContext) throws IOException
+  private void addMalbinaryEncodingLengthElement(CFileWriter code, AreaContext areaContext, String varName) throws IOException
+  {
+	  //        rc = <area>_malbinary_add_mal_element_encoding_length(element, encoder, cursor);
+	  //        if (rc < 0)
+	  //          return rc;
+	  code.addStatement("rc = " + areaContext.areaNameL + "_" + transportMalbinary + "_add_mal_element_encoding_length(encoder, " + varName + ", cursor);");
+	  code.addStatement("if (rc < 0)", 1);
+	  code.addStatement("return rc;", -1);
+  }
+
+  private void addMalbinaryEncodingLengthElementFunction(AreaContext areaContext) throws IOException
+  {
+		// int <area>_malbinary_add_mal_element_encoding_length(
+	  	//	mal_encoder_t *encoder, void *cursor,
+		//	mal_element_holder_t *element_holder);
+		areaContext.areaH.openFunctionPrototype("int", areaContext.areaNameL + "_" + transportMalbinary + "_add_mal_element_encoding_length", 3);
+		areaContext.areaH.addFunctionParameter("mal_encoder_t *", "encoder", false);
+		areaContext.areaH.addFunctionParameter("mal_element_holder_t *", "element_holder", false);
+		areaContext.areaH.addFunctionParameter("void *", "cursor", true);
+		areaContext.areaH.closeFunctionPrototype();
+
+		// int <area>_malbinary_add_mal_element_encoding_length(
+		//	mal_encoder_t *encoder, void *cursor,
+		//	mal_element_holder_t *element_holder) {
+		areaContext.areaC.addNewLine();
+		areaContext.areaC.openFunctionPrototype("int", areaContext.areaNameL + "_" + transportMalbinary + "_add_mal_element_encoding_length", 3);
+		areaContext.areaC.addFunctionParameter("mal_encoder_t *", "encoder", false);
+		areaContext.areaC.addFunctionParameter("mal_element_holder_t *", "element_holder", false);
+		areaContext.areaC.addFunctionParameter("void *", "cursor", true);
+		areaContext.areaC.openFunctionBody();
+
+		//	int rc = 0;
+		//  rc = mal_encoder_encode_short_form(self, cursor, element_holder->short_form);
+		//	if (rc < 0) return rc;
+		areaContext.areaC.addStatement("int rc = 0;");
+		
+		areaContext.areaC.addSingleLineComment("Encoding abstract mal_element require encoding short form");
+		// rc = mal_encoder_add_short_form_encoding_length(encoder, element->short_form, cursor);
+		// if (rc < 0)
+		//   return rc;
+		areaContext.areaC.addStatement("rc = mal_encoder_add_short_form_encoding_length(encoder, element_holder->short_form, cursor);");
+		areaContext.areaC.addStatement("if (rc < 0)", 1);
+		areaContext.areaC.addStatement("return rc;", -1);
+
+		// type specific decoding depending on the short form
+		Set <TypeKey> keys = allTypesMap.keySet();
+		boolean first = true;
+		for (TypeKey key : keys) {
+			if (abstractTypesSet.contains(key))
+			{
+				// ignore abstract types
+				continue;
+			}
+			// [else] if (element_holder->short_form == <AREA>_[<SERVICE>_]<TYPE>_SHORT_FORM) {
+			TypeReference ptype = key.getTypeReference(false);
+			StringBuilder buf = new StringBuilder();
+			buf.append(ptype.getArea().toLowerCase());
+			buf.append("_");
+			if (ptype.getService() != null)
+			{
+				buf.append(ptype.getService().toLowerCase());
+				buf.append("_");
+			}
+			buf.append(ptype.getName().toLowerCase());
+			String qfTypeNameL = buf.toString();
+			String qfTypeNameU = qfTypeNameL.toUpperCase();
+
+			areaContext.areaC.addStatement((first ? "" : "else ") + "if (element_holder->short_form == " + qfTypeNameU + "_SHORT_FORM)");
+			areaContext.areaC.openBlock();
+			if (isAttributeType(ptype))
+			{
+				String varType = ptype.getName().toLowerCase();
+				addMalbinaryEncodingLengthAttribute(areaContext.areaC, "element_holder->value." + varType + "_value", varType);
+			}
+			else if (isComposite(ptype))
+			{
+				// FIXME addMalbinaryEncodingLengthComposite(areaContext.areaC, "element_holder->value.composite_value", qfTypeNameL, true);
+				addMalbinaryEncodingLengthComposite(areaContext.areaC, "element_holder->value.composite_value", qfTypeNameL);
+			}
+			else if (isEnum(ptype))
+			{
+				MalbinaryEnumSize enumMBSize = getEnumTypeMBSize(ptype);
+				// FIXME addMalbinaryEncodingLengthEnumeration(areaContext.areaC, "element_holder->value.enumerated_value", qfTypeNameL, enumMBSize);
+				addMalbinaryEncodingLengthEnumeration(areaContext.areaC, "element_holder->value.enumerated_value", enumMBSize);
+			}
+			else
+			{
+				throw new IllegalStateException("addMalbinaryEncodingLengthElement: unexpected type " + key);
+			}
+			areaContext.areaC.closeBlock();
+			first = false;
+			
+			// else if (element_holder->short_form == <AREA>_[<SERVICE>_]<TYPE>_LIST_SHORT_FORM) {
+			// 	<length element>
+			// }
+			areaContext.areaC.addStatement((first ? "" : "else ") + "if (element_holder->short_form == " + qfTypeNameU + "_LIST_SHORT_FORM)");
+			areaContext.areaC.openBlock();
+			// FIXME addMalbinaryEncodingLengthList(areaContext.areaC, "element_holder->value.list_value", qfTypeNameL, true);
+			addMalbinaryEncodingLengthList(areaContext.areaC, "element_holder->value.list_value", qfTypeNameL);
+			areaContext.areaC.closeBlock();
+			
+			areaContext.reqAreas.add(ptype.getArea());
+		}
+
+		// else return -1;
+		areaContext.areaC.addStatement("else", 1);
+		areaContext.areaC.addStatement("return -1;", -1);
+				
+		areaContext.areaC.addStatement("return rc;");
+		areaContext.areaC.closeFunctionBody();
+  }
+
+  private void addMalbinaryEncodingEncodeElement(CFileWriter code, AreaContext areaContext, String varName) throws IOException
+  {
+	  //        rc = <area>_malbinary_encode_mal_element(encoder, cursor, element);
+	  //        if (rc < 0)
+	  //          return rc;
+	  code.addStatement("rc = " + areaContext.areaNameL + "_" + transportMalbinary + "_encode_mal_element(encoder, cursor, " + varName + ");");
+	  code.addStatement("if (rc < 0)", 1);
+	  code.addStatement("return rc;", -1);
+  }
+
+  private void addMalbinaryEncodingEncodeElementFunction(AreaContext areaContext) throws IOException
+  {
+		// int <area>_malbinary_encode_mal_element(
+	  	//	mal_encoder_t *encoder, void *cursor,
+		//	mal_element_holder_t *element_holder);
+		areaContext.areaH.openFunctionPrototype("int", areaContext.areaNameL + "_" + transportMalbinary + "_encode_mal_element", 3);
+		areaContext.areaH.addFunctionParameter("mal_encoder_t *", "encoder", false);
+		areaContext.areaH.addFunctionParameter("void *", "cursor", false);
+		areaContext.areaH.addFunctionParameter("mal_element_holder_t *", "element_holder", true);
+		areaContext.areaH.closeFunctionPrototype();
+
+		// int <area>_malbinary_encode_mal_element(
+		//	mal_encoder_t *encoder, void *cursor,
+		//	mal_element_holder_t *element_holder) {
+		areaContext.areaC.addNewLine();
+		areaContext.areaC.openFunctionPrototype("int", areaContext.areaNameL + "_" + transportMalbinary + "_encode_mal_element", 3);
+		areaContext.areaC.addFunctionParameter("mal_encoder_t *", "encoder", false);
+		areaContext.areaC.addFunctionParameter("void *", "cursor", false);
+		areaContext.areaC.addFunctionParameter("mal_element_holder_t *", "element_holder", true);
+		areaContext.areaC.openFunctionBody();
+
+		//	int rc = 0;
+		areaContext.areaC.addStatement("int rc = 0;");
+
+		areaContext.areaC.addSingleLineComment("Encoding abstract mal_element require encoding short form");
+		//  rc = mal_encoder_encode_short_form(self, cursor, element_holder->short_form);
+		//	if (rc < 0) return rc;
+		areaContext.areaC.addStatement("rc = mal_encoder_encode_short_form(encoder, cursor, element_holder->short_form);");
+		areaContext.areaC.addStatement("if (rc < 0)", 1);
+		areaContext.areaC.addStatement("return rc;", -1);
+		
+		// type specific decoding depending on the short form
+		Set <TypeKey> keys = allTypesMap.keySet();
+		boolean first = true;
+		for (TypeKey key : keys) {
+			if (abstractTypesSet.contains(key))
+			{
+				// ignore abstract types
+				continue;
+			}
+			// [else] if (element_holder->short_form == <AREA>_[<SERVICE>_]<TYPE>_SHORT_FORM) {
+			TypeReference ptype = key.getTypeReference(false);
+			StringBuilder buf = new StringBuilder();
+			buf.append(ptype.getArea().toLowerCase());
+			buf.append("_");
+			if (ptype.getService() != null)
+			{
+				buf.append(ptype.getService().toLowerCase());
+				buf.append("_");
+			}
+			buf.append(ptype.getName().toLowerCase());
+			String qfTypeNameL = buf.toString();
+			String qfTypeNameU = qfTypeNameL.toUpperCase();
+
+			areaContext.areaC.addStatement((first ? "" : "else ") + "if (element_holder->short_form == " + qfTypeNameU + "_SHORT_FORM)");
+			areaContext.areaC.openBlock();
+			if (isAttributeType(ptype))
+			{
+				String varType = ptype.getName().toLowerCase();
+				addMalbinaryEncodingEncodeAttribute(areaContext.areaC, "element_holder->value." + varType + "_value", varType);
+			}
+			else if (isComposite(ptype))
+			{
+				// FIXME addMalbinaryEncodingEncodeComposite(areaContext.areaC, "element_holder->value.composite_value", qfTypeNameL, true);
+				addMalbinaryEncodingEncodeComposite(areaContext.areaC, "element_holder->value.composite_value", qfTypeNameL);
+			}
+			else if (isEnum(ptype))
+			{
+				MalbinaryEnumSize enumMBSize = getEnumTypeMBSize(ptype);
+				// FIXME addMalbinaryEncodingEncodeEnumeration(areaContext.areaC, "element_holder->value.enumerated_value", qfTypeNameL, enumMBSize);
+				addMalbinaryEncodingEncodeEnumeration(areaContext.areaC, "element_holder->value.enumerated_value", enumMBSize);
+			}
+			else
+			{
+				throw new IllegalStateException("addMalbinaryEncodingEncodeElement: unexpected type " + key);
+			}
+			areaContext.areaC.closeBlock();
+			first = false;
+			
+			// else if (element_holder->short_form == <AREA>_[<SERVICE>_]<TYPE>_LIST_SHORT_FORM) {
+			// 	<encode element>
+			// }
+			areaContext.areaC.addStatement((first ? "" : "else ") + "if (element_holder->short_form == " + qfTypeNameU + "_LIST_SHORT_FORM)");
+			areaContext.areaC.openBlock();
+			// FIXME addMalbinaryEncodingEncodeList(areaContext.areaC, "element_holder->value.list_value", qfTypeNameL, true);
+			addMalbinaryEncodingEncodeList(areaContext.areaC, "element_holder->value.list_value", qfTypeNameL);
+			areaContext.areaC.closeBlock();
+			
+			areaContext.reqAreas.add(ptype.getArea());
+		}
+
+		// else return -1;
+		areaContext.areaC.addStatement("else", 1);
+		areaContext.areaC.addStatement("return -1;", -1);
+				
+		areaContext.areaC.addStatement("return rc;");
+		areaContext.areaC.closeFunctionBody();
+  }
+
+  private void addMalbinaryEncodingDecodeElement(CFileWriter code, AreaContext areaContext, String varName) throws IOException
+  {
+	  //        rc = <area>_malbinary_decode_mal_element(decoder, cursor, element);
+	  //        if (rc < 0)
+	  //          return rc;
+	  code.addStatement("rc = " + areaContext.areaNameL + "_" + transportMalbinary + "_decode_mal_element(decoder, cursor, "+ varName + ");");
+	  code.addStatement("if (rc < 0)", 1);
+	  code.addStatement("return rc;", -1);
+  }
+
+  private void addMalbinaryEncodingDecodeElementFunction(AreaContext areaContext) throws IOException
   {
 		// int <area>_malbinary_decode_mal_element(
   	//	mal_decoder_t *decoder, void *cursor,

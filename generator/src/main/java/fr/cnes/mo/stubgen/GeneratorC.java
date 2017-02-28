@@ -324,7 +324,7 @@ public class GeneratorC extends GeneratorBase
       areaContext.areaH.addNewLine();
 
       // define the generic decoding function for the area (it is actually generic for the application)
-      addGenericParamDecodingFunctions(areaContext);
+      addGenericParamXcodingFunctions(areaContext);
       
       // write the standard area identifiers
       comment = "standard area identifiers";
@@ -490,9 +490,11 @@ public class GeneratorC extends GeneratorBase
     	{
     		generatePubSubEncodingRelatedParameters(opContext, "update", operation.getUpdateTypes());
     		addRegisterFunction(opContext, "register");
+    		addXregisterGenericFunction(opContext, "register");
     		addPublishRegisterFunction(opContext, "publish_register");
     		addPublishFunction(opContext, "publish", operation.getUpdateTypes());
     		addDeregisterFunction(opContext, "deregister");
+    		addXregisterGenericFunction(opContext, "deregister");
     		addPublishDeregisterFunction(opContext, "publish_deregister");
     		OperationType opType = operation.getOriginalOp();
     		if (opType == null || ! (opType instanceof PubSubOperationType))
@@ -1382,19 +1384,7 @@ public class GeneratorC extends GeneratorBase
     	  	}
     	  	else
     	  	{
-  	  			// build the fully qualified name of the field type for the C mapping (lower case)
-  	  	    // <area>_[<service>_]<field type>
-    	  		// attribute type <attribute> naturally gives a qualified name mal_<attribute>
-  	  	    StringBuilder buf = new StringBuilder();
-  	  	    buf.append(cfDetails.type.getArea().toLowerCase());
-  	  	    buf.append("_");
-  	  	    if (cfDetails.type.getService() != null)
-  	  	    {
-  	  	    	buf.append(cfDetails.type.getService().toLowerCase());
-  	  	    	buf.append("_");
-  	  	    }
-  	  	    buf.append(cfDetails.type.getName().toLowerCase());
-  	  	    cfDetails.qfTypeNameL = buf.toString();
+  	  	    cfDetails.qfTypeNameL = getTypeFQN(cfDetails.type);
 
   	  			if (cfDetails.type.isList())
   	  			{
@@ -1767,6 +1757,78 @@ public class GeneratorC extends GeneratorBase
   private MalbinaryEnumSize getEnumTypeMBSize(TypeReference type) throws IOException
   {
 		return getEnumTypeMBSize(type, null);
+  }
+
+  protected String getTypeFQN(TypeReference ptype) {
+	  // build the fully qualified name of the field type for the C mapping (lower case)
+	  // <area>_[<service>_]<field type>
+	  // attribute type <attribute> naturally gives a qualified name mal_<attribute>
+	  StringBuilder buf = new StringBuilder();
+	  buf.append(ptype.getArea().toLowerCase());
+	  buf.append("_");
+	  if (ptype.getService() != null)
+	  {
+		  buf.append(ptype.getService().toLowerCase());
+		  buf.append("_");
+	  }
+	  buf.append(ptype.getName().toLowerCase());
+	  return buf.toString();
+  }
+
+  protected ParameterDetails getParameterDetails(TypeReference ptype) {
+	  ParameterDetails paramDetails = new ParameterDetails();
+	  paramDetails.isError = /* FIXME */ false;
+	  paramDetails.isAttribute = isAttributeType(ptype);
+	  paramDetails.isAbstract = isAbstract(ptype);
+	  paramDetails.isComposite = isComposite(ptype);
+	  paramDetails.isList = ptype.isList();
+	  paramDetails.isAbstractAttribute = false;
+	  paramDetails.isEnumeration = isEnum(ptype);
+	  paramDetails.isPolymorph = /* FIXME */ false;
+	  paramDetails.isPresenceFlag = false;
+	  paramDetails.isPubSub = /* FIXME */ false;
+	  paramDetails.qfTypeNameL = getTypeFQN(ptype);
+	  paramDetails.type = ptype;
+	  if (isAbstract(ptype))
+	  {
+		  paramDetails.isAbstract = true;
+		  // check for abstract Attribute type
+		  if (StdStrings.MAL.equals(ptype.getArea()) &&
+				  StdStrings.ATTRIBUTE.equals(ptype.getName()))
+		  {
+			  paramDetails.isAbstractAttribute = true;
+		  }
+		  if (paramDetails.isAbstractAttribute &&
+				  ! ptype.isList()) {
+			  paramDetails.isPresenceFlag = true;
+		  }
+	  }
+	  if (isAttributeType(ptype))
+	  {
+		  paramDetails.isAttribute = true;
+		  // fieldType is also <qfTypeNameL>_t, with an optional *
+		  paramDetails.paramType = getAttributeDetails(ptype).getTargetType();
+		  // if map type is not a pointer, declare the is_present field
+		  if (! paramDetails.paramType.endsWith("*"))
+		  {
+			  paramDetails.isPresenceFlag = true;
+		  }
+	  }
+	  else if (isEnum(ptype))
+	  {
+		  // compCtxt.holdsEnumField = true;
+		  paramDetails.isEnumeration = true;
+		  //	<qualified type>_t <field>;
+		  paramDetails.paramType = paramDetails.qfTypeNameL + "_t";
+		  paramDetails.isPresenceFlag = true;
+	  }
+	  else if (isComposite(ptype))
+	  {
+		  paramDetails.isComposite = true;
+		  //	<qualified field type>_t <field>;
+		  paramDetails.paramType = paramDetails.qfTypeNameL + "_t *";
+	  }
+	  return paramDetails;
   }
 
   private void addCompFieldMalbinaryEncoding(CompositeContext compCtxt, CompositeField element, CompositeFieldDetails cfDetails) throws IOException
@@ -2547,7 +2609,7 @@ public class GeneratorC extends GeneratorBase
   private void addMalbinaryEncodingLengthEnumeration(CFileWriter codeLength, String varName, MalbinaryEnumSize enumMBSize) throws IOException
   {
   	//		rc = mal_encoder_add_[small|medium|large]_enum_encoding_length(encoder, <element>, cursor);
-		//		if (rc < 0) return rc;
+  	//		if (rc < 0) return rc;
   	codeLength.addStatement("rc = mal_encoder_add_" + enumMBSize.getCgenPrefix() + "_enum_encoding_length(encoder, " + varName + ", cursor);");
   	codeLength.addStatement("if (rc < 0)", 1);
   	codeLength.addStatement("return rc;", -1);
@@ -2792,12 +2854,14 @@ public class GeneratorC extends GeneratorBase
   {
   	OpStageContext opStageCtxt = new OpStageContext(opContext, opStage, true, parameters);
   	addInteractionFunction(opStageCtxt);
+  	addInteractionGenericFunction(opStageCtxt);
   }
 
   private void addResultInteractionFunctions(OperationContext opContext, String opStage, List<TypeInfo> parameters) throws IOException
   {
   	OpStageContext opStageCtxt = new OpStageContext(opContext, opStage, false, parameters);
   	addInteractionFunction(opStageCtxt);
+  	addInteractionGenericFunction(opStageCtxt);
   }
   
   private void addInteractionFunction(OpStageContext opStageCtxt) throws IOException
@@ -2957,25 +3021,246 @@ public class GeneratorC extends GeneratorBase
     	}
     }
   }
-  
+
+  /**
+   * Generate "_full" function to allow operation initialisation from single call.
+   */
+  private void addInteractionGenericFunction(OpStageContext opStageCtxt) throws IOException
+  {
+	  // declare the function in the <area>.h file and define it in the <area>.c file
+	  final AreaContext areaContext = opStageCtxt.opContext.serviceContext.areaContext;
+	  CFileWriter areaH = areaContext.areaHContent;
+	  CFileWriter areaC = areaContext.areaC;
+	  areaC.addNewLine();
+
+	  final String functionName = opStageCtxt.qfOpStageNameL + "_full";
+
+	  final int size = 2 + (opStageCtxt.isInit ? 1 : 2) + 7 + (opStageCtxt.parameters != null ? opStageCtxt.parameters.size() : 0);
+	  String[][] params = new String[size][];
+	  int i = 0;
+	  params[i++] = new String[]{ "mal_encoder_t *", "encoder" };
+	  params[i++] = new String[]{ "mal_endpoint_t *", "endpoint" };
+	  if (opStageCtxt.isInit)
+	  {
+		  params[i++] = new String[]{ "mal_uri_t *", "provider_uri" };
+	  }
+	  else
+	  {
+		  params[i++] = new String[]{ "mal_message_t *", "result_message" };
+		  params[i++] = new String[]{ "bool", "is_error_message" };
+	  }
+	  // for creating message
+	  params[i++] = new String[]{ "mal_blob_t *", "authentication_id" };
+	  params[i++] = new String[]{ "mal_qoslevel_t ", "qoslevel" };
+	  params[i++] = new String[]{ "mal_uinteger_t ", "priority" };
+	  params[i++] = new String[]{ "mal_identifier_list_t *", "domain" };
+	  params[i++] = new String[]{ "mal_identifier_t *", "network_zone" };
+	  params[i++] = new String[]{ "mal_sessiontype_t ", "session" };
+	  params[i++] = new String[]{ "mal_identifier_t *", "session_name" };
+	  // Effective parameters
+	  final List<TypeInfo> parameters = opStageCtxt.parameters;
+	  if (parameters != null)
+	  {
+		  for (int j = 0 ; j < parameters.size() ; j++)
+		  {
+			  params[i++] = new String[]{ "mal_element_holder_t *", "arg"+j };
+		  }
+	  }
+
+	  // int <area>_<service>_<operation>_<first stage>_full(mal_endpoint_t *endpoint, mal_message_t *message, 
+	  // init -> mal_uri_t *provider_uri
+	  // result-> mal_message_t *result_message, bool is_error_message
+	  // );
+	  areaH.openFunctionPrototype("int", functionName, size);
+	  areaH.addFunctionParameters(params);
+	  areaH.closeFunctionPrototype();
+
+	  // int <area>_<service>_<operation>_<result stage>_full(mal_endpoint_t *endpoint, mal_message_t *init_message,
+	  // init -> mal_uri_t *provider_uri
+	  // result -> mal_message_t *result_message, bool is_error_message
+	  // )
+	  areaC.openFunction("int", functionName, size);
+	  areaC.addFunctionParameters(params);
+	  areaC.openFunctionBody();
+
+	  areaC.addStatement("int rc = 0;");
+
+	  areaC.addStatement("void *cursor = mal_encoder_new_cursor(encoder);");
+
+	  areaC.addSingleLineComment("Length");
+	  if (parameters != null)
+	  {
+		  for (int j = 0 ; j < parameters.size() ; j++)
+		  {
+			  final String argName = "arg" + j;
+			  areaC.addSingleLineComment("Length of " + argName);
+			  TypeReference ptype = parameters.get(j).getSourceType();
+			  ParameterDetails paramDetails = getParameterDetails(ptype);
+			  paramDetails.paramIndex = j;
+			  paramDetails.paramName = argName;
+			  paramDetails.paramType = ptype.getName().toLowerCase();
+			  addInteractionParamEncodingLength(opStageCtxt, paramDetails);
+		  }
+	  }
+
+	  areaC.addStatement("mal_message_t *message = mal_message_new(authentication_id, "
+			  + "qoslevel, priority, domain, "
+			  + "network_zone, session, session_name, "
+			  + "mal_encoder_cursor_get_length(encoder, cursor));");
+
+	  areaC.addStatement("mal_encoder_cursor_init("
+			  + "encoder, cursor, "
+			  + "mal_message_get_body(message), "
+			  + "mal_encoder_cursor_get_length(encoder, cursor), "
+			  + "mal_message_get_body_offset(message));");
+
+
+	  areaC.addSingleLineComment("Encoding");
+	  if (parameters != null)
+	  {
+		  for (int j = 0 ; j < parameters.size() ; j++)
+		  {
+			  final String argName = "arg" + j;
+			  areaC.addSingleLineComment("Encoding " + argName);
+			  TypeReference ptype = parameters.get(j).getSourceType();
+			  ParameterDetails paramDetails = getParameterDetails(ptype);
+			  paramDetails.paramIndex = j;
+			  paramDetails.paramName = argName;
+			  paramDetails.paramType = ptype.getName().toLowerCase();
+			  addInteractionParamEncodingEncode(opStageCtxt, paramDetails);
+			  areaC.addStatement("mal_encoder_cursor_assert(encoder, cursor);");
+		  }
+	  }
+
+	  areaC.addSingleLineComment("Clean");
+	  areaC.addStatement("mal_encoder_cursor_destroy(encoder, cursor);");
+
+	  if (opStageCtxt.isInit)
+	  {
+		  areaC.addStatement("rc = " + opStageCtxt.qfOpStageNameL + "(endpoint, message, provider_uri);");
+	  }
+	  else
+	  {
+		  areaC.addStatement("rc = " + opStageCtxt.qfOpStageNameL + "(endpoint, message, result_message, is_error_message);");
+	  }
+
+	  areaC.addStatement("return rc;");
+	  areaC.closeFunctionBody();
+  }
+
+  /**
+   * Generate "_full" function to allow register/deregister from single call.
+   */
+  private void addXregisterGenericFunction(OperationContext opContext, String opStage) throws IOException
+  {
+	  OpStageContext opStageCtxt = new OpStageContext(opContext, opStage, true, null);
+	  addXregisterGenericFunction(opStageCtxt);
+  }
+
+  /**
+   * Generate "_full" function to allow register/deregister from single call.
+   */
+  private void addXregisterGenericFunction(OpStageContext opStageCtxt) throws IOException
+  {
+	  // declare the function in the <area>.h file and define it in the <area>.c file
+	  final AreaContext areaContext = opStageCtxt.opContext.serviceContext.areaContext;
+	  CFileWriter areaH = areaContext.areaHContent;
+	  CFileWriter areaC = areaContext.areaC;
+	  areaC.addNewLine();
+
+	  final String functionName = opStageCtxt.qfOpStageNameL + "_full";
+
+	  final int size = 2 + (opStageCtxt.isInit ? 1 : 2) + 7 + 1;
+	  String[][] params = new String[size][];
+	  int i = 0;
+	  params[i++] = new String[]{ "mal_encoder_t *", "encoder" };
+	  params[i++] = new String[]{ "mal_endpoint_t *", "endpoint" };
+	  if (opStageCtxt.isInit)
+	  {
+		  params[i++] = new String[]{ "mal_uri_t *", "broker_uri" };
+	  }
+	  else
+	  {
+		  params[i++] = new String[]{ "mal_message_t *", "result_message" };
+		  params[i++] = new String[]{ "bool", "is_error_message" };
+	  }
+	  // for creating message
+	  params[i++] = new String[]{ "mal_blob_t *", "authentication_id" };
+	  params[i++] = new String[]{ "mal_qoslevel_t ", "qoslevel" };
+	  params[i++] = new String[]{ "mal_uinteger_t ", "priority" };
+	  params[i++] = new String[]{ "mal_identifier_list_t *", "domain" };
+	  params[i++] = new String[]{ "mal_identifier_t *", "network_zone" };
+	  params[i++] = new String[]{ "mal_sessiontype_t ", "session" };
+	  params[i++] = new String[]{ "mal_identifier_t *", "session_name" };
+	  // Effective parameter
+	  params[i++] = new String[]{ "mal_element_holder_t *", "arg" };
+
+	  // int <area>_<service>_<operation>_<first stage>_full(mal_endpoint_t *endpoint, mal_message_t *message, 
+	  // init -> mal_uri_t *provider_uri
+	  // result-> mal_message_t *result_message, bool is_error_message
+	  // );
+	  areaH.openFunctionPrototype("int", functionName, size);
+	  areaH.addFunctionParameters(params);
+	  areaH.closeFunctionPrototype();
+
+	  // int <area>_<service>_<operation>_<result stage>_full(mal_endpoint_t *endpoint, mal_message_t *init_message,
+	  // init -> mal_uri_t *provider_uri
+	  // result -> mal_message_t *result_message, bool is_error_message
+	  // )
+	  areaC.openFunction("int", functionName, size);
+	  areaC.addFunctionParameters(params);
+	  areaC.openFunctionBody();
+
+	  areaC.addStatement("int rc = 0;");
+
+	  areaC.addStatement("mal_subscription_t *subscription = (mal_subscription_t *)arg->value.composite_value;");
+	  
+	  areaC.addStatement("void *cursor = mal_encoder_new_cursor(encoder);");
+
+	  areaC.addSingleLineComment("Length");
+	  areaC.addStatement("rc = mal_register_add_encoding_length(encoder, subscription, cursor);");
+	  areaC.addStatement("if (rc < 0)", 1);
+	  areaC.addStatement("return rc;", -1);
+
+	  areaC.addStatement("mal_message_t *message = mal_message_new(authentication_id, "
+			  + "qoslevel, priority, domain, "
+			  + "network_zone, session, session_name, "
+			  + "mal_encoder_cursor_get_length(encoder, cursor));");
+
+	  areaC.addStatement("mal_encoder_cursor_init("
+			  + "encoder, cursor, "
+			  + "mal_message_get_body(message), "
+			  + "mal_encoder_cursor_get_length(encoder, cursor), "
+			  + "mal_message_get_body_offset(message));");
+
+
+	  areaC.addSingleLineComment("Encoding");
+	  areaC.addStatement("rc = mal_register_encode(cursor, encoder, subscription);");
+	  areaC.addStatement("if (rc < 0)", 1);
+	  areaC.addStatement("return rc;", -1);
+
+	  areaC.addSingleLineComment("Clean");
+	  areaC.addStatement("mal_encoder_cursor_destroy(encoder, cursor);");
+
+	  if (opStageCtxt.isInit)
+	  {
+		  areaC.addStatement("rc = " + opStageCtxt.qfOpStageNameL + "(endpoint, message, broker_uri);");
+	  }
+	  else
+	  {
+		  areaC.addStatement("rc = " + opStageCtxt.qfOpStageNameL + "(endpoint, message, result_message, is_error_message);");
+	  }
+
+	  areaC.addStatement("return rc;");
+	  areaC.closeFunctionBody();
+  }
+
   /**
    * Fill in the ParameterDetails structure from the paramType parameter.
    * paramType refers to a concrete type.
    */
   private void fillInteractionParamDetails(ParameterDetails paramDetails, TypeReference paramType) throws IOException {
-		// build the fully qualified name of the parameter type for the C mapping (lower case)
-		// <area>_[<service>_]<param type>
-		// attribute type <attribute> naturally gives a qualified name mal_<attribute>
-  	StringBuilder buf = new StringBuilder();
-		buf.append(paramType.getArea().toLowerCase());
-		buf.append("_");
-		if (paramType.getService() != null)
-		{
-			buf.append(paramType.getService().toLowerCase());
-			buf.append("_");
-		}
-		buf.append(paramType.getName().toLowerCase());
-		paramDetails.qfTypeNameL = buf.toString();
+		paramDetails.qfTypeNameL = getTypeFQN(paramType);
 		
 		if (paramType.isList())
 		{
@@ -3018,6 +3303,7 @@ public class GeneratorC extends GeneratorBase
   {
   	addInteractionParamEncodingFunctions(opStageContext, paramDetails);
   	addInteractionParamEncodingDecodeFunction(opStageContext, paramDetails);
+  	addInteractionParamGenericDecodingFunction(opStageContext, paramDetails);
   }
 
   private void addInteractionParamEncodingFunctions(OpStageContext opStageContext, ParameterDetails paramDetails) throws IOException
@@ -3315,29 +3601,97 @@ public class GeneratorC extends GeneratorBase
 			}
 			
 		}
+		// Generate for mal_element_holder_t
+		addInteractionParamGenericEncodingLengthFunction(opStageContext, paramDetails);
+		addInteractionParamGenericEncodingEncodeFunction(opStageContext, paramDetails);
+  }
+
+  protected String getInteractionParamEncodingFunctionName(OpStageContext opStageContext, ParameterDetails paramDetails, String type) {
+	  StringBuilder buf = new StringBuilder();
+	  buf.append(opStageContext.qfOpStageNameL);
+	  buf.append(type);
+	  if (! paramDetails.isError)
+	  {
+		  buf.append("_").append(paramDetails.paramIndex);
+	  }
+	  if (paramDetails.isPolymorph || paramDetails.isError)
+	  {
+		  buf.append("_").append(paramDetails.qfTypeNameL);
+		  if (paramDetails.isList)
+		  {
+			  buf.append("_list");
+		  }
+	  }
+	  return buf.toString();
   }
   
+  private void addInteractionParamEncodingLength(OpStageContext opStageContext, ParameterDetails paramDetails) throws IOException
+  {
+	  CFileWriter areaC = opStageContext.opContext.serviceContext.areaContext.areaC;
+
+	  String encodeFuncNameL = getInteractionParamEncodingFunctionName(opStageContext, paramDetails, "_add_encoding_length");
+	  String argName = paramDetails.paramName;
+	  String varType = paramDetails.paramType;
+	  final String prefix = "rc = " + encodeFuncNameL + "(encoder,";
+	  final String suffix = ",cursor);";
+	  if (paramDetails.isAbstract)
+	  {
+		  areaC.addStatement(prefix+argName+suffix);
+	  }
+	  else if (paramDetails.isList)
+	  {
+		  areaC.addStatement("if ("+argName+" != NULL && "+argName+"->presence_flag) {",1);
+		  areaC.addStatement(prefix+argName+"->value.list_value"+suffix, -1);
+		  areaC.addStatement("} else {", 1);
+		  areaC.addStatement(prefix+"NULL"+suffix, -1);
+		  areaC.addStatement("}");
+	  }
+	  else if (paramDetails.isAttribute && paramDetails.isPresenceFlag)
+	  {
+		  areaC.addStatement("if ("+argName+" != NULL && "+argName+"->presence_flag) {",1);
+		  areaC.addStatement(prefix+"true,"+argName+"->value." + varType+"_value"+suffix, -1);
+		  areaC.addStatement("} else {", 1);
+		  areaC.addStatement(prefix+"false,0"+suffix, -1);
+		  areaC.addStatement("}");
+	  }
+	  else if (paramDetails.isAttribute && !paramDetails.isPresenceFlag)
+	  {
+		  areaC.addStatement("if ("+argName+" != NULL && "+argName+"->presence_flag) {",1);
+		  areaC.addStatement(prefix+argName+"->value." + varType+"_value"+suffix, -1);
+		  areaC.addStatement("} else {", 1);
+		  areaC.addStatement(prefix+"0"+suffix, -1);
+		  areaC.addStatement("}");
+	  }
+	  else if (paramDetails.isComposite)
+	  {
+		  areaC.addStatement("if ("+argName+" != NULL && "+argName+"->presence_flag) {",1);
+		  areaC.addStatement(prefix+argName+"->value.composite_value"+suffix, -1);
+		  areaC.addStatement("} else {", 1);
+		  areaC.addStatement(prefix+"NULL"+suffix, -1);
+		  areaC.addStatement("}");
+	  }
+	  else if (paramDetails.isEnumeration)
+	  {
+		  areaC.addStatement("if ("+argName+" != NULL && "+argName+"->presence_flag) {",1);
+		  areaC.addStatement(prefix+"true,"+argName+"->value.enumerated_value"+suffix, -1);
+		  areaC.addStatement("} else {", 1);
+		  areaC.addStatement(prefix+"false,0"+suffix, -1);
+		  areaC.addStatement("}");
+	  }
+	  else
+	  {
+		  throw new IllegalStateException("unexpected type " + paramDetails);
+	  }
+	  areaC.addStatement("if (rc < 0)",1);
+	  areaC.addStatement("return rc;",-1);
+  }
+
   private void addInteractionParamEncodingLengthFunction(OpStageContext opStageContext, ParameterDetails paramDetails) throws IOException
   {
   	CFileWriter areaH = opStageContext.opContext.serviceContext.areaContext.areaHContent;
   	CFileWriter areaC = opStageContext.opContext.serviceContext.areaContext.areaC;
 		areaC.addNewLine();
-    StringBuilder buf = new StringBuilder();
-    buf.append(opStageContext.qfOpStageNameL);
-    buf.append("_add_encoding_length");
-    if (! paramDetails.isError)
-    {
-    	buf.append("_").append(paramDetails.paramIndex);
-    }
-    if (paramDetails.isPolymorph || paramDetails.isError)
-    {
-    	buf.append("_").append(paramDetails.qfTypeNameL);
-      if (paramDetails.isList)
-      {
-      	buf.append("_list");
-      }
-    }
-    String encodeFuncNameL = buf.toString();
+    String encodeFuncNameL = getInteractionParamEncodingFunctionName(opStageContext, paramDetails, "_add_encoding_length");
     
   	if (paramDetails.isAbstractAttribute && !paramDetails.isList)
   	{
@@ -3467,8 +3821,7 @@ public class GeneratorC extends GeneratorBase
     	{
     		if (paramDetails.isPolymorph)
     		{
-    			String shortForm = paramDetails.qfTypeNameL.toUpperCase() +
-    					(paramDetails.isList ? "_LIST_SHORT_FORM" : "_SHORT_FORM");
+    			String shortForm = paramDetails.getShortForm();
     			addMalbinaryEncodingLengthShortForm(areaC, shortForm);
     		}
     		if (paramDetails.isAttribute)
@@ -3504,27 +3857,166 @@ public class GeneratorC extends GeneratorBase
   	areaC.closeFunctionBody();
   }
 
+  private void addInteractionParamGenericEncodingLength(CFileWriter code, OpStageContext opStageContext, ParameterDetails paramDetails, String varName) throws IOException
+  {
+	  StringBuilder funcNameL = new StringBuilder();
+	  funcNameL.append(opStageContext.qfOpStageNameL);
+	  funcNameL.append("_add_encoding_length");
+	  if (! paramDetails.isError)
+	  {
+		  funcNameL.append("_").append(paramDetails.paramIndex);
+	  }
+	  // rc = <qfop>_<stage|error>_add_encoding_length[_<index>](element, encoder, cursor);
+	  // if (rc < 0)
+	  //    return rc;
+	  code.addStatement("rc = " + funcNameL.toString() + "(cursor, encoder," + varName + ");");
+	  code.addStatement("if (rc < 0)", 1);
+	  code.addStatement("return rc;", -1);
+  }
+
+  private void addInteractionParamGenericEncodingLengthFunction(OpStageContext opStageContext, ParameterDetails paramDetails) throws IOException
+  {
+	  final AreaContext areaContext = opStageContext.opContext.serviceContext.areaContext;
+	  CFileWriter areaH = areaContext.areaHContent;
+	  CFileWriter areaC = areaContext.areaC;
+	  areaC.addNewLine();
+	  StringBuilder buf = new StringBuilder();
+	  buf.append(opStageContext.qfOpStageNameL);
+	  buf.append("_add_encoding_length");
+	  if (! paramDetails.isError)
+	  {
+		  buf.append("_").append(paramDetails.paramIndex);
+	  }
+	  String encodeFuncNameL = buf.toString();
+
+	  // int <qfop>_<stage|error>_add_encoding_length[_<index>](
+	  //	mal_encoder_t *encoder, mal_element_holder_t *element,
+	  //	void * cursor);
+	  areaH.openFunctionPrototype("int", encodeFuncNameL, 3);
+	  areaH.addFunctionParameter("mal_encoder_t *", "encoder", false);
+	  areaH.addFunctionParameter("mal_element_holder_t *", "element", false);
+	  areaH.addFunctionParameter("void *", "cursor", true);
+	  areaH.closeFunctionPrototype();
+
+	  // int <qfop>_<stage|error>_add_encoding_length[_<index>](
+	  //	mal_encoder_t *encoder, mal_element_holder_t *element,
+	  //	void *cursor) {
+	  areaC.openFunction("int", encodeFuncNameL, 3);
+	  areaC.addFunctionParameter("mal_encoder_t *", "encoder", false);
+	  areaC.addFunctionParameter("mal_element_holder_t *", "element", false);
+	  areaC.addFunctionParameter("void *", "cursor", true);
+	  areaC.openFunctionBody();
+
+	  //	int rc = 0;
+	  //	switch (encoder->encoding_format_code) {
+	  //	case <FORMAT>_FORMAT_CODE: {
+	  // format specific code
+	  //		break;
+	  //	}
+	  //	default:
+	  //		rc = -1;
+	  //	}
+	  //	return rc;
+	  // }
+	  areaC.addStatement("int rc = 0;");
+	  areaC.addStatement("switch (encoder->encoding_format_code)");
+	  areaC.openBlock();
+	  if (generateTransportMalbinary || generateTransportMalsplitbinary)
+	  {
+		  if (generateTransportMalbinary)
+		  {
+			  areaC.addStatement("case " + transportMalbinary.toUpperCase() + "_FORMAT_CODE:");
+		  }
+		  if (generateTransportMalsplitbinary)
+		  {
+			  areaC.addStatement("case " + transportMalsplitbinary.toUpperCase() + "_FORMAT_CODE:");
+		  }
+		  areaC.openBlock();
+		  final String isPresent = "(element != NULL && element->presence_flag)";
+		  addMalbinaryEncodingLengthPresenceFlag(areaC, isPresent);
+		  areaC.addStatement("if (" + isPresent + ")");
+		  areaC.openBlock();
+
+		  addMalbinaryEncodingLengthElement(areaC, areaContext, "element");
+
+		  areaC.closeBlock();
+		  areaC.addStatement("break;");
+		  areaC.closeBlock();
+	  }
+	  areaC.addStatement("default:");
+	  areaC.addStatement("rc = -1;");
+	  areaC.closeBlock();
+	  areaC.addStatement("return rc;");
+	  areaC.closeFunctionBody();
+  }
+
+  private void addInteractionParamEncodingEncode(OpStageContext opStageContext, ParameterDetails paramDetails) throws IOException
+  {
+	  CFileWriter areaC = opStageContext.opContext.serviceContext.areaContext.areaC;
+
+	  String encodeFuncNameL = getInteractionParamEncodingFunctionName(opStageContext, paramDetails, "_encode");
+	  String argName = paramDetails.paramName;
+	  String varType = paramDetails.paramType;
+	  final String prefix = "rc = " + encodeFuncNameL + "(cursor,encoder,";
+	  final String suffix = ");";
+	  if (paramDetails.isAbstract)
+	  {
+		  areaC.addStatement(prefix+argName+suffix);
+	  }
+	  else if (paramDetails.isList)
+	  {
+		  areaC.addStatement("if ("+argName+" != NULL && "+argName+"->presence_flag) {",1);
+		  areaC.addStatement(prefix+argName+"->value.list_value"+suffix, -1);
+		  areaC.addStatement("} else {", 1);
+		  areaC.addStatement(prefix+"NULL"+suffix, -1);
+		  areaC.addStatement("}");
+	  }
+	  else if (paramDetails.isAttribute && paramDetails.isPresenceFlag)
+	  {
+		  areaC.addStatement("if ("+argName+" != NULL && "+argName+"->presence_flag) {",1);
+		  areaC.addStatement(prefix+"true,"+argName+"->value." + varType+"_value"+suffix, -1);
+		  areaC.addStatement("} else {", 1);
+		  areaC.addStatement(prefix+"false,0"+suffix, -1);
+		  areaC.addStatement("}");
+	  }
+	  else if (paramDetails.isAttribute && !paramDetails.isPresenceFlag)
+	  {
+		  areaC.addStatement("if ("+argName+" != NULL && "+argName+"->presence_flag) {",1);
+		  areaC.addStatement(prefix+argName+"->value." + varType+"_value"+suffix, -1);
+		  areaC.addStatement("} else {", 1);
+		  areaC.addStatement(prefix+"0"+suffix, -1);
+		  areaC.addStatement("}");
+	  }
+	  else if (paramDetails.isComposite)
+	  {
+		  areaC.addStatement("if ("+argName+" != NULL && "+argName+"->presence_flag) {",1);
+		  areaC.addStatement(prefix+argName+"->value.composite_value"+suffix, -1);
+		  areaC.addStatement("} else {", 1);
+		  areaC.addStatement(prefix+"NULL"+suffix, -1);
+		  areaC.addStatement("}");
+	  }
+	  else if (paramDetails.isEnumeration)
+	  {
+		  areaC.addStatement("if ("+argName+" != NULL && "+argName+"->presence_flag) {",1);
+		  areaC.addStatement(prefix+"true,"+argName+"->value.enumerated_value"+suffix, -1);
+		  areaC.addStatement("} else {", 1);
+		  areaC.addStatement(prefix+"false,0"+suffix, -1);
+		  areaC.addStatement("}");
+	  }
+	  else
+	  {
+		  throw new IllegalStateException("unexpected type " + paramDetails);
+	  }
+	  areaC.addStatement("if (rc < 0)",1);
+	  areaC.addStatement("return rc;",-1);
+  }
+
   private void addInteractionParamEncodingEncodeFunction(OpStageContext opStageContext, ParameterDetails paramDetails) throws IOException
   {
   	CFileWriter areaH = opStageContext.opContext.serviceContext.areaContext.areaHContent;
   	CFileWriter areaC = opStageContext.opContext.serviceContext.areaContext.areaC;
 		areaC.addNewLine();
-    StringBuilder buf = new StringBuilder();
-    buf.append(opStageContext.qfOpStageNameL);
-    buf.append("_encode");
-    if (! paramDetails.isError)
-    {
-    	buf.append("_").append(paramDetails.paramIndex);
-    }
-    if (paramDetails.isPolymorph || paramDetails.isError)
-    {
-    	buf.append("_").append(paramDetails.qfTypeNameL);
-      if (paramDetails.isList)
-      {
-      	buf.append("_list");
-      }
-    }
-    String encodeFuncNameL = buf.toString();
+    String encodeFuncNameL = getInteractionParamEncodingFunctionName(opStageContext, paramDetails, "_encode");
 
   	if (paramDetails.isAbstractAttribute && !paramDetails.isList)
   	{
@@ -3643,8 +4135,7 @@ public class GeneratorC extends GeneratorBase
     	{
     		if (paramDetails.isPolymorph)
     		{
-    			String shortForm = paramDetails.qfTypeNameL.toUpperCase() +
-    					(paramDetails.isList ? "_LIST_SHORT_FORM" : "_SHORT_FORM");
+    			String shortForm = paramDetails.getShortForm();
     			addMalbinaryEncodingEncodeShortForm(areaC, shortForm);
     		}
     		if (paramDetails.isAttribute)
@@ -3680,6 +4171,107 @@ public class GeneratorC extends GeneratorBase
   	areaC.closeFunctionBody();
   }
 
+  private void addInteractionParamGenericEncodingEncode(CFileWriter code, OpStageContext opStageContext, ParameterDetails paramDetails, String varName) throws IOException
+  {
+	  StringBuilder funcNameL = new StringBuilder();
+	  funcNameL.append(opStageContext.qfOpStageNameL);
+	  funcNameL.append("_encode");
+	  if (! paramDetails.isError)
+	  {
+		  funcNameL.append("_").append(paramDetails.paramIndex);
+	  }
+	  // rc = <qfop>_<stage|error>_encode[_<index>](element, encoder, cursor);
+	  // if (rc < 0)
+	  //    return rc;
+	  code.addStatement("rc = " + funcNameL.toString() + "(cursor, encoder," + varName + ");");
+	  code.addStatement("if (rc < 0)", 1);
+	  code.addStatement("return rc;", -1);
+  }
+
+  private void addInteractionParamGenericEncodingEncodeFunction(OpStageContext opStageContext, ParameterDetails paramDetails) throws IOException
+  {
+	  final AreaContext areaContext = opStageContext.opContext.serviceContext.areaContext;
+	  CFileWriter areaH = areaContext.areaHContent;
+	  CFileWriter areaC = areaContext.areaC;
+	  areaC.addNewLine();
+	  StringBuilder buf = new StringBuilder();
+	  buf.append(opStageContext.qfOpStageNameL);
+	  buf.append("_encode");
+	  if (! paramDetails.isError)
+	  {
+		  buf.append("_").append(paramDetails.paramIndex);
+	  }
+	  String encodeFuncNameL = buf.toString();
+
+	  // int <qfop>_<stage|error>_encode[_<index>](
+	  //	mal_encoder_t *encoder, mal_element_holder_t *element,
+	  //	void * cursor);
+	  areaH.openFunctionPrototype("int", encodeFuncNameL, 3);
+	  areaH.addFunctionParameter("void *", "cursor", false);
+	  areaH.addFunctionParameter("mal_encoder_t *", "encoder", false);
+	  areaH.addFunctionParameter("mal_element_holder_t *", "element", true);
+	  areaH.closeFunctionPrototype();
+
+	  // int <qfop>_<stage|error>_encode[_<index>](
+	  //	mal_encoder_t *encoder, mal_element_holder_t *element,
+	  //	void *cursor) {
+	  areaC.openFunction("int", encodeFuncNameL, 3);
+	  areaC.addFunctionParameter("void *", "cursor", false);
+	  areaC.addFunctionParameter("mal_encoder_t *", "encoder", false);
+	  areaC.addFunctionParameter("mal_element_holder_t *", "element", true);
+	  areaC.openFunctionBody();
+
+	  //	int rc = 0;
+	  //	switch (encoder->encoding_format_code) {
+	  //	case <FORMAT>_FORMAT_CODE: {
+	  // format specific code
+	  //		break;
+	  //	}
+	  //	default:
+	  //		rc = -1;
+	  //	}
+	  //	return rc;
+	  // }
+	  areaC.addStatement("int rc = 0;");
+	  areaC.addStatement("switch (encoder->encoding_format_code)");
+	  areaC.openBlock();
+	  if (generateTransportMalbinary || generateTransportMalsplitbinary)
+	  {
+		  if (generateTransportMalbinary)
+		  {
+			  areaC.addStatement("case " + transportMalbinary.toUpperCase() + "_FORMAT_CODE:");
+		  }
+		  if (generateTransportMalsplitbinary)
+		  {
+			  areaC.addStatement("case " + transportMalsplitbinary.toUpperCase() + "_FORMAT_CODE:");
+		  }
+		  areaC.openBlock();
+		  final String isPresent = "(element != NULL && element->presence_flag)";
+		  addMalbinaryEncodingEncodePresenceFlag(areaC, isPresent);
+		  areaC.addStatement("if (" + isPresent + ")");
+		  areaC.openBlock();
+
+		  addMalbinaryEncodingEncodeElement(areaC, areaContext, "element");
+
+		  areaC.closeBlock();
+		  areaC.addStatement("break;");
+		  areaC.closeBlock();
+	  }
+	  areaC.addStatement("default:");
+	  areaC.addStatement("rc = -1;");
+	  areaC.closeBlock();
+	  areaC.addStatement("return rc;");
+	  areaC.closeFunctionBody();
+  }
+
+  /**
+   * Generate the function to decode a positionnal element.
+   * <pre>
+   * int &lt;qfop&gt;_&lt;stage&gt;_decode[_&lt;index&gt;](
+   *    void *cursor,
+   *    mal_decoder_t *decoder, ...)
+   * </pre>
+   */
   private void addInteractionParamEncodingDecodeFunction(OpStageContext opStageContext, ParameterDetails paramDetails) throws IOException
   {
   	CFileWriter areaH = opStageContext.opContext.serviceContext.areaContext.areaHContent;
@@ -3878,7 +4470,82 @@ public class GeneratorC extends GeneratorBase
   	areaC.closeFunctionBody();
   }
 
-  private void addGenericParamDecodingFunctions(AreaContext areaContext) throws IOException
+  /**
+   * Generate the function to decode a positionnal element into mal_element_t.
+   * <pre>
+   * int &lt;qfop&gt;_&lt;stage&gt;_decode[_&lt;index&gt;]_mal_element(
+   *    void *cursor,
+   *    mal_decoder_t *decoder,
+   *    mal_element_holder_t *element_holder)
+   * </pre>
+   */
+  private void addInteractionParamGenericDecodingFunction(OpStageContext opStageContext, ParameterDetails paramDetails) throws IOException
+  {
+  	CFileWriter areaH = opStageContext.opContext.serviceContext.areaContext.areaHContent;
+  	CFileWriter areaC = opStageContext.opContext.serviceContext.areaContext.areaC;
+		areaC.addNewLine();
+    StringBuilder buf = new StringBuilder();
+    buf.append(opStageContext.qfOpStageNameL);
+    buf.append("_decode");
+    if (! paramDetails.isError)
+    {
+    	buf.append("_").append(paramDetails.paramIndex);
+    }
+    String decodeFuncNameLSub = buf.toString();
+    buf.append("_mal_element");
+    String decodeFuncNameL = buf.toString();
+    
+	// int <qfop>_<stage|error>_decode[_<index>]_mal_element(
+	//	void *cursor,
+	//	mal_decoder_t *decoder, mal_element_holder_t *element_holder);
+	areaH.openFunctionPrototype("int", decodeFuncNameL, 3);
+	areaH.addFunctionParameter("void *", "cursor", false);
+	areaH.addFunctionParameter("mal_decoder_t *", "decoder", false);
+	areaH.addFunctionParameter("mal_element_holder_t *", "element_holder", true);
+	areaH.closeFunctionPrototype();
+
+	// int <qfop>_<stage|error>_decode[_<index>]_mal_element(
+	//	void *cursor,
+	//	mal_decoder_t *decoder, mal_element_holder_t *element_holder) {
+	areaC.openFunction("int", decodeFuncNameL, 3);
+	areaC.addFunctionParameter("void *", "cursor", false);
+	areaC.addFunctionParameter("mal_decoder_t *", "decoder", false);
+	areaC.addFunctionParameter("mal_element_holder_t *", "element_holder", true);
+	areaC.openFunctionBody();
+
+  	areaC.addStatement("int rc = 0;");
+
+  	if (paramDetails.isAbstractAttribute && !paramDetails.isList)
+  	{
+  		areaC.addSingleLineComment("TODO");
+  	}
+  	else if (paramDetails.isAbstract)
+  	{
+  		areaC.addStatement("rc = " + decodeFuncNameLSub + "(cursor, decoder, element_holder);");
+	}
+	else if (paramDetails.isPresenceFlag)
+	{
+	  	areaC.addStatement("union mal_element_t value;");
+	  	areaC.addStatement("bool presence_flag;");
+  		areaC.addStatement("rc = " + decodeFuncNameLSub + "(cursor, decoder, &presence_flag, (void*)&value.composite_value);");
+  		areaC.addStatement("mal_element_holder_set_presence_flag(element_holder, presence_flag);");
+  		areaC.addStatement("mal_element_holder_set_value(element_holder, value);");
+  		areaC.addStatement("mal_element_holder_set_short_form(element_holder, " + paramDetails.getShortForm() + ");");
+  	}
+	else
+	{
+	  	areaC.addStatement("union mal_element_t value;");
+  		areaC.addStatement("rc = " + decodeFuncNameLSub + "(cursor, decoder, (void*)&value.composite_value);");
+  		areaC.addStatement("mal_element_holder_set_presence_flag(element_holder, ((void*)value.composite_value != NULL));");
+  		areaC.addStatement("mal_element_holder_set_value(element_holder, value);");
+  		areaC.addStatement("mal_element_holder_set_short_form(element_holder, " + paramDetails.getShortForm() + ");");
+  	}
+    
+  	areaC.addStatement("return rc;");
+  	areaC.closeFunctionBody();
+  }
+    
+  private void addGenericParamXcodingFunctions(AreaContext areaContext) throws IOException
   {
   	if (generateTransportMalbinary)
   	{
@@ -3920,8 +4587,6 @@ public class GeneratorC extends GeneratorBase
 		areaContext.areaC.openFunctionBody();
 
 		//	int rc = 0;
-		//  rc = mal_encoder_encode_short_form(self, cursor, element_holder->short_form);
-		//	if (rc < 0) return rc;
 		areaContext.areaC.addStatement("int rc = 0;");
 		
 		areaContext.areaC.addSingleLineComment("Encoding abstract mal_element require encoding short form");
@@ -3943,16 +4608,7 @@ public class GeneratorC extends GeneratorBase
 			}
 			// [else] if (element_holder->short_form == <AREA>_[<SERVICE>_]<TYPE>_SHORT_FORM) {
 			TypeReference ptype = key.getTypeReference(false);
-			StringBuilder buf = new StringBuilder();
-			buf.append(ptype.getArea().toLowerCase());
-			buf.append("_");
-			if (ptype.getService() != null)
-			{
-				buf.append(ptype.getService().toLowerCase());
-				buf.append("_");
-			}
-			buf.append(ptype.getName().toLowerCase());
-			String qfTypeNameL = buf.toString();
+			String qfTypeNameL = getTypeFQN(ptype);
 			String qfTypeNameU = qfTypeNameL.toUpperCase();
 
 			areaContext.areaC.addStatement((first ? "" : "else ") + "if (element_holder->short_form == " + qfTypeNameU + "_SHORT_FORM)");
@@ -3964,13 +4620,11 @@ public class GeneratorC extends GeneratorBase
 			}
 			else if (isComposite(ptype))
 			{
-				// FIXME addMalbinaryEncodingLengthComposite(areaContext.areaC, "element_holder->value.composite_value", qfTypeNameL, true);
 				addMalbinaryEncodingLengthComposite(areaContext.areaC, "element_holder->value.composite_value", qfTypeNameL);
 			}
 			else if (isEnum(ptype))
 			{
 				MalbinaryEnumSize enumMBSize = getEnumTypeMBSize(ptype);
-				// FIXME addMalbinaryEncodingLengthEnumeration(areaContext.areaC, "element_holder->value.enumerated_value", qfTypeNameL, enumMBSize);
 				addMalbinaryEncodingLengthEnumeration(areaContext.areaC, "element_holder->value.enumerated_value", enumMBSize);
 			}
 			else
@@ -3985,7 +4639,6 @@ public class GeneratorC extends GeneratorBase
 			// }
 			areaContext.areaC.addStatement((first ? "" : "else ") + "if (element_holder->short_form == " + qfTypeNameU + "_LIST_SHORT_FORM)");
 			areaContext.areaC.openBlock();
-			// FIXME addMalbinaryEncodingLengthList(areaContext.areaC, "element_holder->value.list_value", qfTypeNameL, true);
 			addMalbinaryEncodingLengthList(areaContext.areaC, "element_holder->value.list_value", qfTypeNameL);
 			areaContext.areaC.closeBlock();
 			
@@ -4035,7 +4688,7 @@ public class GeneratorC extends GeneratorBase
 		areaContext.areaC.addStatement("int rc = 0;");
 
 		areaContext.areaC.addSingleLineComment("Encoding abstract mal_element require encoding short form");
-		//  rc = mal_encoder_encode_short_form(self, cursor, element_holder->short_form);
+		//  rc = mal_encoder_encode_short_form(encoder, cursor, element_holder->short_form);
 		//	if (rc < 0) return rc;
 		areaContext.areaC.addStatement("rc = mal_encoder_encode_short_form(encoder, cursor, element_holder->short_form);");
 		areaContext.areaC.addStatement("if (rc < 0)", 1);
@@ -4052,16 +4705,7 @@ public class GeneratorC extends GeneratorBase
 			}
 			// [else] if (element_holder->short_form == <AREA>_[<SERVICE>_]<TYPE>_SHORT_FORM) {
 			TypeReference ptype = key.getTypeReference(false);
-			StringBuilder buf = new StringBuilder();
-			buf.append(ptype.getArea().toLowerCase());
-			buf.append("_");
-			if (ptype.getService() != null)
-			{
-				buf.append(ptype.getService().toLowerCase());
-				buf.append("_");
-			}
-			buf.append(ptype.getName().toLowerCase());
-			String qfTypeNameL = buf.toString();
+			String qfTypeNameL = getTypeFQN(ptype);
 			String qfTypeNameU = qfTypeNameL.toUpperCase();
 
 			areaContext.areaC.addStatement((first ? "" : "else ") + "if (element_holder->short_form == " + qfTypeNameU + "_SHORT_FORM)");
@@ -4073,13 +4717,11 @@ public class GeneratorC extends GeneratorBase
 			}
 			else if (isComposite(ptype))
 			{
-				// FIXME addMalbinaryEncodingEncodeComposite(areaContext.areaC, "element_holder->value.composite_value", qfTypeNameL, true);
 				addMalbinaryEncodingEncodeComposite(areaContext.areaC, "element_holder->value.composite_value", qfTypeNameL);
 			}
 			else if (isEnum(ptype))
 			{
 				MalbinaryEnumSize enumMBSize = getEnumTypeMBSize(ptype);
-				// FIXME addMalbinaryEncodingEncodeEnumeration(areaContext.areaC, "element_holder->value.enumerated_value", qfTypeNameL, enumMBSize);
 				addMalbinaryEncodingEncodeEnumeration(areaContext.areaC, "element_holder->value.enumerated_value", enumMBSize);
 			}
 			else
@@ -4094,7 +4736,6 @@ public class GeneratorC extends GeneratorBase
 			// }
 			areaContext.areaC.addStatement((first ? "" : "else ") + "if (element_holder->short_form == " + qfTypeNameU + "_LIST_SHORT_FORM)");
 			areaContext.areaC.openBlock();
-			// FIXME addMalbinaryEncodingEncodeList(areaContext.areaC, "element_holder->value.list_value", qfTypeNameL, true);
 			addMalbinaryEncodingEncodeList(areaContext.areaC, "element_holder->value.list_value", qfTypeNameL);
 			areaContext.areaC.closeBlock();
 			
@@ -4162,16 +4803,7 @@ public class GeneratorC extends GeneratorBase
 			}
 			// [else] if (element_holder->short_form == <AREA>_[<SERVICE>_]<TYPE>_SHORT_FORM) {
 			TypeReference ptype = key.getTypeReference(false);
-			StringBuilder buf = new StringBuilder();
-			buf.append(ptype.getArea().toLowerCase());
-			buf.append("_");
-			if (ptype.getService() != null)
-			{
-				buf.append(ptype.getService().toLowerCase());
-				buf.append("_");
-			}
-			buf.append(ptype.getName().toLowerCase());
-			String qfTypeNameL = buf.toString();
+			String qfTypeNameL = getTypeFQN(ptype);
 			String qfTypeNameU = qfTypeNameL.toUpperCase();
 
 			areaContext.areaC.addStatement((first ? "" : "else ") + "if (element_holder->short_form == " + qfTypeNameU + "_SHORT_FORM)");
@@ -4899,6 +5531,35 @@ public class GeneratorC extends GeneratorBase
 		String qfTypeNameL = null;
   	String paramName = null;
   	TypeReference type = null;
+
+  	public String getShortForm() {
+		return this.qfTypeNameL.toUpperCase() +
+				(this.isList ? "_LIST_SHORT_FORM" : "_SHORT_FORM");
+  	}
+  	
+  	@Override
+  	public String toString() {
+  		StringBuffer buf = new StringBuffer();
+  		buf.append(this.getClass());
+  		buf.append("{");
+  		buf.append("paramIndex = "+paramIndex);
+  		buf.append(", isLast = "+isLast);
+  		buf.append(", isPolymorph = "+isPolymorph);
+  		buf.append(", isError = "+isError);
+  		buf.append(", isPresenceFlag = "+isPresenceFlag);
+  		buf.append(", isAbstract = "+isAbstract);
+  		buf.append(", isAbstractAttribute = "+isAbstractAttribute);
+  		buf.append(", isAttribute = "+isAttribute);
+  		buf.append(", isComposite = "+isComposite);
+  		buf.append(", isEnumeration = "+isEnumeration);
+  		buf.append(", isList = "+isList);
+  		buf.append(", isPubSub = "+isPubSub);
+  		buf.append(", paramType = "+paramType);
+  		buf.append(", qfTypeNameL = "+qfTypeNameL);
+  		buf.append(", paramName = "+paramName);
+  		buf.append("}");
+  		return buf.toString();
+  	}
   }
   
   /**

@@ -2495,6 +2495,14 @@ public class GeneratorC extends GeneratorBase
 	  codeDecode.addStatement(buf.toString());
 	  codeDecode.addStatement("if (rc < 0)", 1);
 	  codeDecode.addStatement("return rc;", -1);
+	  if (varName.charAt(0) == '*')
+	  {
+		  varName = varName.substring(1);
+	  }
+	  else
+	  {
+		  varName = "&" + varName;
+	  }
 	  codeDecode.addStatement("rc = mal_decoder_decode_attribute(decoder, cursor, " + tagName + ", " + varName + ");");
 	  codeDecode.addStatement("if (rc < 0)", 1);
 	  codeDecode.addStatement("return rc;", -1);

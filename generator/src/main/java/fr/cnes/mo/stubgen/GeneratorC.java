@@ -4917,7 +4917,9 @@ public class GeneratorC extends GeneratorBase
 	  generatePubSubEncodingRelatedParameters(opStageCtxt);
   }
   
-  //generate all PubSub encoding code related to the parameters
+  /*
+   * generate all PubSub encoding code related to the parameters
+   */
   private void generatePubSubEncodingRelatedParameters(OpStageContext opStageCtxt) throws IOException {
 	  // generate all encoding code related to the parameters
 	  List<TypeInfo> parameters = opStageCtxt.parameters;
@@ -4951,7 +4953,8 @@ public class GeneratorC extends GeneratorBase
 			  	throw new IllegalArgumentException("illegal list type " + paramType.toString() + " for parameter " + param.getFieldName() + " in operation " + opStageCtxt.qfOpStageNameL);
 			  }
 			  paramType.setList(true);
-			  
+			  paramDetails.isList = true;
+
 			  if (isAbstract(paramType))
 			  {
 				  paramDetails.isAbstract = true;

@@ -3222,12 +3222,17 @@ public class GeneratorC extends GeneratorBase
 
 	  areaC.addStatement("int rc = 0;");
 
-	  areaC.addStatement("mal_subscription_t *subscription = (mal_subscription_t *)arg->value.composite_value;");
+	  if (opStageCtxt.opStage.equals("register"))
+	  {
+		  areaC.addStatement("mal_subscription_t *subscription = (mal_subscription_t *)arg->value.composite_value;");
+	  } else {
+		  areaC.addStatement("mal_identifier_list_t *subscription = (mal_identifier_list_t *)arg->value.list_value;");
+	  }
 	  
 	  areaC.addStatement("void *cursor = mal_encoder_new_cursor(encoder);");
 
 	  areaC.addSingleLineComment("Length");
-	  areaC.addStatement("rc = mal_register_add_encoding_length(encoder, subscription, cursor);");
+	  areaC.addStatement("rc = mal_" + opStageCtxt.opStage + "_add_encoding_length(encoder, subscription, cursor);");
 	  areaC.addStatement("if (rc < 0)", 1);
 	  areaC.addStatement("return rc;", -1);
 
@@ -3244,7 +3249,7 @@ public class GeneratorC extends GeneratorBase
 
 
 	  areaC.addSingleLineComment("Encoding");
-	  areaC.addStatement("rc = mal_register_encode(cursor, encoder, subscription);");
+	  areaC.addStatement("rc = mal_" + opStageCtxt.opStage + "_encode(cursor, encoder, subscription);");
 	  areaC.addStatement("if (rc < 0)", 1);
 	  areaC.addStatement("return rc;", -1);
 

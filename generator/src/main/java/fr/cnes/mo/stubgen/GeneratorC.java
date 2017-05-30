@@ -45,6 +45,7 @@ import esa.mo.tools.stubgen.GeneratorConfiguration;
 import esa.mo.tools.stubgen.StubUtils;
 import esa.mo.tools.stubgen.specification.AttributeTypeDetails;
 import esa.mo.tools.stubgen.specification.CompositeField;
+import esa.mo.tools.stubgen.specification.InteractionPatternEnum;
 import esa.mo.tools.stubgen.specification.OperationSummary;
 import esa.mo.tools.stubgen.specification.ServiceSummary;
 import esa.mo.tools.stubgen.specification.StdStrings;
@@ -3818,7 +3819,9 @@ public class GeneratorC extends GeneratorBase
 				//	(element != NULL)
 				isPresent = "(element != NULL)";
 			}
-    	addMalbinaryEncodingLengthPresenceFlag(areaC, isPresent);
+		if (opStageContext.opContext.operation.getPattern() != InteractionPatternEnum.PUBSUB_OP) {
+			addMalbinaryEncodingLengthPresenceFlag(areaC, isPresent);
+		} // No presence flag for PUBSUB notify
   		areaC.addStatement("if (" + isPresent + ")");
     	areaC.openBlock();
     	if (paramDetails.isAbstractAttribute)
@@ -4132,7 +4135,9 @@ public class GeneratorC extends GeneratorBase
     	  //	bool presence_flag = (element != NULL);
     		areaC.addStatement("bool presence_flag = (element != NULL);");
     	}
-    	addMalbinaryEncodingEncodePresenceFlag(areaC, "presence_flag");
+    	if (opStageContext.opContext.operation.getPattern() != InteractionPatternEnum.PUBSUB_OP) {
+    		addMalbinaryEncodingEncodePresenceFlag(areaC, "presence_flag");
+    	} // No presence flag for PUBSUB notify
     	areaC.addStatement("if (presence_flag)");
     	areaC.openBlock();
     	if (paramDetails.isAbstractAttribute)
@@ -4411,7 +4416,12 @@ public class GeneratorC extends GeneratorBase
     	areaC.openBlock();
     	// use a local variable as the flag should not be set while the element has not been successfully decoded
     	areaC.addStatement("bool presence_flag;");
-    	addMalbinaryEncodingDecodePresenceFlag(areaC, "presence_flag");
+    	if (opStageContext.opContext.operation.getPattern() == InteractionPatternEnum.PUBSUB_OP) {
+    		// There is no nullable argument in PUBSUB notify
+    		areaC.addStatement("presence_flag = true;");
+    	} else {
+    		addMalbinaryEncodingDecodePresenceFlag(areaC, "presence_flag");
+    	}
     	areaC.addStatement("if (presence_flag)");
     	areaC.openBlock();
     	if (paramDetails.isAbstract)

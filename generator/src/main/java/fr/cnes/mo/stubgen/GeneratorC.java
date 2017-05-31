@@ -45,6 +45,7 @@ import esa.mo.tools.stubgen.GeneratorConfiguration;
 import esa.mo.tools.stubgen.StubUtils;
 import esa.mo.tools.stubgen.specification.AttributeTypeDetails;
 import esa.mo.tools.stubgen.specification.CompositeField;
+import esa.mo.tools.stubgen.specification.InteractionPatternEnum;
 import esa.mo.tools.stubgen.specification.OperationSummary;
 import esa.mo.tools.stubgen.specification.ServiceSummary;
 import esa.mo.tools.stubgen.specification.StdStrings;
@@ -3221,12 +3222,17 @@ public class GeneratorC extends GeneratorBase
 
 	  areaC.addStatement("int rc = 0;");
 
-	  areaC.addStatement("mal_subscription_t *subscription = (mal_subscription_t *)arg->value.composite_value;");
+	  if (opStageCtxt.opStage.equals("register"))
+	  {
+		  areaC.addStatement("mal_subscription_t *subscription = (mal_subscription_t *)arg->value.composite_value;");
+	  } else {
+		  areaC.addStatement("mal_identifier_list_t *subscription = (mal_identifier_list_t *)arg->value.list_value;");
+	  }
 	  
 	  areaC.addStatement("void *cursor = mal_encoder_new_cursor(encoder);");
 
 	  areaC.addSingleLineComment("Length");
-	  areaC.addStatement("rc = mal_register_add_encoding_length(encoder, subscription, cursor);");
+	  areaC.addStatement("rc = mal_" + opStageCtxt.opStage + "_add_encoding_length(encoder, subscription, cursor);");
 	  areaC.addStatement("if (rc < 0)", 1);
 	  areaC.addStatement("return rc;", -1);
 
@@ -3243,7 +3249,7 @@ public class GeneratorC extends GeneratorBase
 
 
 	  areaC.addSingleLineComment("Encoding");
-	  areaC.addStatement("rc = mal_register_encode(cursor, encoder, subscription);");
+	  areaC.addStatement("rc = mal_" + opStageCtxt.opStage + "_encode(cursor, encoder, subscription);");
 	  areaC.addStatement("if (rc < 0)", 1);
 	  areaC.addStatement("return rc;", -1);
 
@@ -3818,7 +3824,9 @@ public class GeneratorC extends GeneratorBase
 				//	(element != NULL)
 				isPresent = "(element != NULL)";
 			}
-    	addMalbinaryEncodingLengthPresenceFlag(areaC, isPresent);
+		if (opStageContext.opContext.operation.getPattern() != InteractionPatternEnum.PUBSUB_OP) {
+			addMalbinaryEncodingLengthPresenceFlag(areaC, isPresent);
+		} // No presence flag for PUBSUB notify
   		areaC.addStatement("if (" + isPresent + ")");
     	areaC.openBlock();
     	if (paramDetails.isAbstractAttribute)
@@ -4132,7 +4140,9 @@ public class GeneratorC extends GeneratorBase
     	  //	bool presence_flag = (element != NULL);
     		areaC.addStatement("bool presence_flag = (element != NULL);");
     	}
-    	addMalbinaryEncodingEncodePresenceFlag(areaC, "presence_flag");
+    	if (opStageContext.opContext.operation.getPattern() != InteractionPatternEnum.PUBSUB_OP) {
+    		addMalbinaryEncodingEncodePresenceFlag(areaC, "presence_flag");
+    	} // No presence flag for PUBSUB notify
     	areaC.addStatement("if (presence_flag)");
     	areaC.openBlock();
     	if (paramDetails.isAbstractAttribute)
@@ -4411,7 +4421,12 @@ public class GeneratorC extends GeneratorBase
     	areaC.openBlock();
     	// use a local variable as the flag should not be set while the element has not been successfully decoded
     	areaC.addStatement("bool presence_flag;");
-    	addMalbinaryEncodingDecodePresenceFlag(areaC, "presence_flag");
+    	if (opStageContext.opContext.operation.getPattern() == InteractionPatternEnum.PUBSUB_OP) {
+    		// There is no nullable argument in PUBSUB notify
+    		areaC.addStatement("presence_flag = true;");
+    	} else {
+    		addMalbinaryEncodingDecodePresenceFlag(areaC, "presence_flag");
+    	}
     	areaC.addStatement("if (presence_flag)");
     	areaC.openBlock();
     	if (paramDetails.isAbstract)
@@ -4917,7 +4932,9 @@ public class GeneratorC extends GeneratorBase
 	  generatePubSubEncodingRelatedParameters(opStageCtxt);
   }
   
-  //generate all PubSub encoding code related to the parameters
+  /*
+   * generate all PubSub encoding code related to the parameters
+   */
   private void generatePubSubEncodingRelatedParameters(OpStageContext opStageCtxt) throws IOException {
 	  // generate all encoding code related to the parameters
 	  List<TypeInfo> parameters = opStageCtxt.parameters;
@@ -4951,7 +4968,8 @@ public class GeneratorC extends GeneratorBase
 			  	throw new IllegalArgumentException("illegal list type " + paramType.toString() + " for parameter " + param.getFieldName() + " in operation " + opStageCtxt.qfOpStageNameL);
 			  }
 			  paramType.setList(true);
-			  
+			  paramDetails.isList = true;
+
 			  if (isAbstract(paramType))
 			  {
 				  paramDetails.isAbstract = true;

@@ -31,7 +31,7 @@ SOFTWARE.
   <parent>
     <groupId>fr.cnes.mo</groupId>
     <artifactId>StubGenerator</artifactId>
-    <version>1.2.0-SNAPSHOT</version>
+    <version>1.2.0</version>
   </parent>
   
   <artifactId>StubGenerator_C</artifactId>

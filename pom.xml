@@ -31,7 +31,7 @@ SOFTWARE.
   <parent>
     <groupId>int.esa.ccsds.mo</groupId>
     <artifactId>POM</artifactId>
-    <version>3</version>
+    <version>7</version>
   </parent>
   
   <groupId>fr.cnes.mo</groupId>

@@ -215,6 +215,8 @@ public class CFileWriter extends AbstractWriter {
    */
   public void addTypedefStruct(String structName, String typeName) throws IOException
   {
+    final String defName = typeName.toUpperCase() + "_DEFINED";
+    openDefine(defName);
     // typedef struct [<structName> ]<typeName>;
   	addIndent();
   	out.append("typedef struct ");
@@ -223,6 +225,7 @@ public class CFileWriter extends AbstractWriter {
 		out.append(typeName);
   	out.append(";");
     addNewLine();
+    closeDefine(defName);
   }
   
   /**

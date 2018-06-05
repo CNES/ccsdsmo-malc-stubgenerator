@@ -5811,7 +5811,7 @@ public class GeneratorC extends GeneratorBase
     public void closeDefine() throws IOException
     {
     	// #endif // __<AREA>_[<SERVICE>_]<COMPOSITE>_H_INCLUDED__
-    	super.closeDefine("// __" + compositeNameCaps + "_H_INCLUDED__");
+    	super.closeDefine("__" + compositeNameCaps + "_H_INCLUDED__");
     }
 
   }
@@ -5937,7 +5937,7 @@ public class GeneratorC extends GeneratorBase
     public void closeDefine() throws IOException
     {
     	// #endif // __<TYPE_NAME>_H_INCLUDED__
-    	super.closeDefine("// __" + typeNameCaps + "_H_INCLUDED__");
+    	super.closeDefine("__" + typeNameCaps + "_H_INCLUDED__");
     }
   }
 }

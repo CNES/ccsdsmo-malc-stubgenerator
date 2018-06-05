@@ -130,6 +130,7 @@ public class CFileWriter extends AbstractWriter {
   	// #endif <mark>
   	addNewLine();
     out.append("#endif ");
+    out.append("// ");
     out.append(mark);
   	addNewLine();
   }

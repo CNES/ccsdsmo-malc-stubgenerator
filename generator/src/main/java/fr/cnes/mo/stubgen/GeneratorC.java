@@ -1232,7 +1232,7 @@ public class GeneratorC extends GeneratorBase
     compListC.openFunction("void", compCtxt.mapCompNameL + "_list_destroy", 1);
     compListC.addFunctionParameter(mapCompListType + " **", "self_p", true);
     compListC.openFunctionBody();
-    compListC.addStatement("if ((*self_p)->element_count > 0)");
+    compListC.addStatement("if (self_p && *self_p)");
     compListC.openBlock();
     compListC.addStatement("for (int i = 0; i < (*self_p)->element_count; i++)");
     compListC.openBlock();
@@ -5811,7 +5811,7 @@ public class GeneratorC extends GeneratorBase
     public void closeDefine() throws IOException
     {
     	// #endif // __<AREA>_[<SERVICE>_]<COMPOSITE>_H_INCLUDED__
-    	super.closeDefine("// __" + compositeNameCaps + "_H_INCLUDED__");
+    	super.closeDefine("__" + compositeNameCaps + "_H_INCLUDED__");
     }
 
   }
@@ -5937,7 +5937,7 @@ public class GeneratorC extends GeneratorBase
     public void closeDefine() throws IOException
     {
     	// #endif // __<TYPE_NAME>_H_INCLUDED__
-    	super.closeDefine("// __" + typeNameCaps + "_H_INCLUDED__");
+    	super.closeDefine("__" + typeNameCaps + "_H_INCLUDED__");
     }
   }
 }

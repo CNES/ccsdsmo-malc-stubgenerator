@@ -31,7 +31,7 @@ SOFTWARE.
   <parent>
     <groupId>fr.cnes.mo</groupId>
     <artifactId>StubGenerator</artifactId>
-    <version>1.2.0</version>
+    <version>1.3.0</version>
   </parent>
   
   <artifactId>StubGenerator_C</artifactId>
@@ -41,7 +41,7 @@ SOFTWARE.
     <dependency>
       <groupId>int.esa.ccsds.mo</groupId>
       <artifactId>StubGenerator_Lib</artifactId>
-      <version>1.5</version>
+      <version>1.7</version>
     </dependency>
     <dependency>
       <groupId>javax.xml.bind</groupId>

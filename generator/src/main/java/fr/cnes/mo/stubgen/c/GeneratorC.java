@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package fr.cnes.mo.stubgen;
+package fr.cnes.mo.stubgen.c;
 
 import java.io.File;
 import java.io.FileNotFoundException;

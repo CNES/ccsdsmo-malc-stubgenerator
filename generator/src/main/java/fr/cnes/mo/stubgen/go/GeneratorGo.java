@@ -43,7 +43,8 @@
 	import esa.mo.tools.stubgen.GeneratorBase;
 	import esa.mo.tools.stubgen.GeneratorConfiguration;
 	import esa.mo.tools.stubgen.StubUtils;
-	import esa.mo.tools.stubgen.specification.AttributeTypeDetails;
+import esa.mo.tools.stubgen.GeneratorBase.TypeKey;
+import esa.mo.tools.stubgen.specification.AttributeTypeDetails;
 	import esa.mo.tools.stubgen.specification.CompositeField;
 	import esa.mo.tools.stubgen.specification.InteractionPatternEnum;
 	import esa.mo.tools.stubgen.specification.OperationSummary;
@@ -164,9 +165,6 @@ import esa.mo.xsd.ErrorDefinitionList;
 	    super.init(destinationFolderName, true, generateCOM, packageBindings, extraProperties);
 	
 	    // initializes the mapping of the attribute types
-	    // "pointer types" are identified with a trailing '*'
-	    // convention for the map type name is mal_<typeName.toLowerCase()>_t
-	    // generation code makes use of this convention, notably for the list type
 	    //
 	    // The following statements activate code from the base class GeneratorConfiguration.
 	    // We only use native types (3rd parameter true) so that complex code from this class is not used.
@@ -186,8 +184,8 @@ import esa.mo.xsd.ErrorDefinitionList;
 	    addAttributeType(StdStrings.MAL, StdStrings.USHORT, true, "mal.UShort", "");
 	    addAttributeType(StdStrings.MAL, StdStrings.STRING, true, "mal.String", "");
 	    addAttributeType(StdStrings.MAL, StdStrings.TIME, true, "mal.Time", "");
-	    addAttributeType(StdStrings.MAL, StdStrings.FINETIME, true, "mal.Finetime", "");
-	    addAttributeType(StdStrings.MAL, StdStrings.URI, true, "mal.Uri", "");
+	    addAttributeType(StdStrings.MAL, StdStrings.FINETIME, true, "mal.FineTime", "");
+	    addAttributeType(StdStrings.MAL, StdStrings.URI, true, "mal.URI", "");
 	  }
 	
 	  @Override
@@ -279,9 +277,7 @@ import esa.mo.xsd.ErrorDefinitionList;
 	    int pathNum = folderPath.size();
 	    for (int i = 0; i < pathNum; i++) {
 	    	folderBuf.append(folderPath.get(i));
-	    	if (i < pathNum-1) {
-	    		folderBuf.append("/");
-	    	}
+	    	folderBuf.append("/");
 	    }
 	    return folderBuf.toString();
 	  }
@@ -697,17 +693,15 @@ import esa.mo.xsd.ErrorDefinitionList;
 	    // create the consumer structure specific to the operation
 	    // type <operation>Operation struct {
 	    //   op      mal.<type IP>Operation
-	    //   factory mal.EncodingFactory
 	    // }
 	    serviceCContent.openStruct(opContext.consumerStructName);
 	    serviceCContent.addStructField(opContext.operationType, "op");
-	    serviceCContent.addStructField("mal.EncodingFactory", "factory");
 	    serviceCContent.closeStruct();
 	    
 	    // constructor for the consumer structure
 	    // func New<operation>Operation(providerURI *mal.URI) (*<operation>Operation, error) {
-	    //   op := cctx.New<type IP>Operation(providerURI, <area number>, <area version>, <service number>, <OPERATION>_OPERATION_NUMBER)
-	    //   consumer := &<operation>Operation{op, factory}
+	    //   op := Cctx.New<type IP>Operation(providerURI, <area number>, <area version>, <service number>, <OPERATION>_OPERATION_NUMBER)
+	    //   consumer := &<operation>Operation{op}
 	    //   return consumer, nil
 	    // }
 	    serviceCContent.openFunction("New" + opContext.consumerStructName, null);
@@ -715,7 +709,7 @@ import esa.mo.xsd.ErrorDefinitionList;
 	    serviceCContent.openFunctionBody(new String[] { "*" + opContext.consumerStructName, "error" });
 	    serviceCContent.addIndent();
 	    serviceCContentW
-	      .append("op := cctx.New")
+	      .append("op := Cctx.New")
 	      .append(opContext.operationIp)
 	      .append("Operation(providerURI, ")
 	      .append(areaContext.areaNameL)
@@ -735,8 +729,7 @@ import esa.mo.xsd.ErrorDefinitionList;
 	    serviceCContentW
 	      .append("consumer := &")
 	      .append(opContext.consumerStructName)
-	      .append("{op, nil}");
-//	      .append("{op, factory}");
+	      .append("{op}");
 	    serviceCContent.addNewLine();
 	    serviceCContent.addStatement("return consumer, nil");
 	    serviceCContent.closeFunctionBody(); 
@@ -755,18 +748,16 @@ import esa.mo.xsd.ErrorDefinitionList;
 	    // create the subscriber structure specific to the operation
 	    // type <operation>Subscriber struct {
 	    //   op      mal.SubscriberOperation
-	    //   factory mal.EncodingFactory
 	    // }
 	  	String consumerStructName = opName + "Subscriber";
 	    serviceCContent.openStruct(consumerStructName);
 	    serviceCContent.addStructField("mal.SubscriberOperation", "op");
-	    serviceCContent.addStructField("mal.EncodingFactory", "factory");
 	    serviceCContent.closeStruct();
 	    
 	    // constructor for the consumer structure
 	    // func New<operation>Subscriber(providerURI *mal.URI) (*<operation>Subscriber, error) {
 	    //   op := clientContext.NewSubscriberOperation(providerURI, <area number>, <area version>, <service number>, <OPERATION>_OPERATION_NUMBER)
-	    //   subscriber := &<operation>Subscriber{op, factory}
+	    //   subscriber := &<operation>Subscriber{op}
 	    //   return subscriber, nil
 	    // }
 	    serviceCContent.openFunction("New" + consumerStructName, null);
@@ -788,7 +779,7 @@ import esa.mo.xsd.ErrorDefinitionList;
 	    serviceCContentW
 	      .append("subscriber := &")
 	      .append(consumerStructName)
-	      .append("{op, factory}");
+	      .append("{op}");
 	    serviceCContent.addNewLine();
 	    serviceCContent.addStatement("return subscriber, nil");
 	    serviceCContent.closeFunctionBody();
@@ -796,18 +787,16 @@ import esa.mo.xsd.ErrorDefinitionList;
 	    // create the publisher structure specific to the operation
 	    // type <operation>Publisher struct {
 	    //   op      mal.PublisherOperation
-	    //   factory mal.EncodingFactory
 	    // }
 	    consumerStructName = opName + "Publisher";
 	    serviceCContent.openStruct(consumerStructName);
 	    serviceCContent.addStructField("mal.PublisherOperation", "op");
-	    serviceCContent.addStructField("mal.EncodingFactory", "factory");
 	    serviceCContent.closeStruct();
 	    
 	    // constructor for the consumer structure
 	    // func New<operation>Publisher(providerURI *mal.URI) (*<operation>Publisher, error) {
 	    //   op := clientContext.NewPublisherOperation(providerURI, <area number>, <area version>, <service number>, <OPERATION>_OPERATION_NUMBER)
-	    //   publisher := &<operation>Publisher{op, factory}
+	    //   publisher := &<operation>Publisher{op}
 	    //   return publisher, nil
 	    // }
 	    serviceCContent.openFunction("New" + consumerStructName, null);
@@ -829,7 +818,7 @@ import esa.mo.xsd.ErrorDefinitionList;
 	    serviceCContentW
 	      .append("publisher := &")
 	      .append(consumerStructName)
-	      .append("{op, factory}");
+	      .append("{op}");
 	    serviceCContent.addNewLine();
 	    serviceCContent.addStatement("return publisher, nil");
 	    serviceCContent.closeFunctionBody();
@@ -968,10 +957,6 @@ import esa.mo.xsd.ErrorDefinitionList;
   					if (! servicePHelper.packageName.equals(codePackage)) {
   						codeNameBuf.append(codePackage).append(".");
   					}
-  					if (codePackage.equals("mal")) {
-  						// traitement specifique du nommage dans le package mal
-  						codeNameBuf.append("MAL_");
-  					}
   					codeNameBuf
   					.append("ERROR_")
   					.append(errorRef.getType().getName().toUpperCase());
@@ -1008,6 +993,9 @@ import esa.mo.xsd.ErrorDefinitionList;
   							nullValueBuf.append(typePackage).append(".");
   						}
   						nullValueBuf.append("Null").append(extraInfoType.getName());
+  						if (extraInfoType.isList()) {
+  							nullValueBuf.append("List");
+  						}
   						serviceCContent.addStatement(nullValueBuf.toString(), -1);
   					}
   				} else {
@@ -1025,7 +1013,7 @@ import esa.mo.xsd.ErrorDefinitionList;
 	  	
 	  	//   } else {
 	    //     // return an UNKNOWN error with a String information
-	  	//     errCode = mal.NewUInteger(uint32(mal.MAL_ERROR_UNKNOWN))
+	  	//     errCode = mal.NewUInteger(uint32(mal.ERROR_UNKNOWN))
 	  	//     errExtraInfo = mal.NewString(e.Error())
 	  	//     errIsAbstract = false
 	  	//   }
@@ -1033,7 +1021,7 @@ import esa.mo.xsd.ErrorDefinitionList;
 	  	servicePHelperW.append("} else {");
 	  	servicePHelper.addNewLine(1);
 	  	servicePHelper.addSingleLineComment("return an UNKNOWN error with a String information");
-	  	servicePHelper.addStatement("errCode = mal.NewUInteger(uint32(mal.MAL_ERROR_UNKNOWN))");
+	  	servicePHelper.addStatement("errCode = mal.NewUInteger(uint32(mal.ERROR_UNKNOWN))");
 	  	servicePHelper.addStatement("errExtraInfo = mal.NewString(e.Error())");
 	  	servicePHelper.addStatement("errIsAbstract = false");
 	  	servicePHelper.closeBlock();
@@ -1267,15 +1255,15 @@ import esa.mo.xsd.ErrorDefinitionList;
 	    String malEnumName = area.getName() + ":" + (service == null ? "_" : service.getName()) + ":" + enumName;
 	
 	    getLog().info("Creating enumeration " + malEnumName);
-	    getLog().info("TODO: not yet implemented");
 
 	    EnumerationContext enumCtxt = new EnumerationContext(areaContext, serviceContext, enumeration, folder);
 	    enumCtxt.writer.init();
 	    EnumerationWriter enumContent = enumCtxt.writer;
 	    StatementWriter enumContentW = enumCtxt.writer.out;
+	    StatementWriter nvalTableW = enumCtxt.writer.nvalTableW;
+	    GoFileWriter nvalTable = enumCtxt.writer.nvalTable;
 
 	    // define the enumeration
-//	    processCompFields(compCtxt);
 	    comment = "Defines " + enumCtxt.enumName + " type";
 	    enumContent.addNewLine();
 	    enumContent.addSingleLineComment(comment);
@@ -1290,27 +1278,55 @@ import esa.mo.xsd.ErrorDefinitionList;
 	    	.append(" uint32");
 	    enumContent.addNewLine();
 	    
+	    // prepare the conversion table OVAL->NVAL
+	    comment = "Conversion table OVAL->NVAL";
+	    nvalTable.addSingleLineComment(comment);
+	    nvalTable.addStatement("var nvalTable = []uint32 {", 1);
+	    
 	    // open the constant definition block
 	    enumContent.openConstBlock();
 	    for (int i = 0; i < enumSize; i++)
 	    {
-	    	// the nValue of the enumerated variable is ignored at this stage
 	    	// we keep the default value set by the go language, optimal for encoding and conform to malbinary encoding
 	    	//   <ENUM NAME>_<VALUE NAME>_OVAL [= iota]
 	    	Item item = enumeration.getItem().get(i);
+	    	String valueName = item.getValue().toUpperCase();
 		    enumContent.addIndent();
 		    enumContentW
 		    	.append(enumCtxt.enumNameU)
 		    	.append("_")
-		    	.append(item.getValue().toUpperCase())
+		    	.append(valueName)
 		    	.append("_OVAL");
 		    if (i == 0) {
 		    	enumContentW.append(" = iota");
 		    }
 		    enumContent.addNewLine();
+	    	//   <ENUM NAME>_<VALUE NAME>_NVAL = <numeric value>
+		    enumContent.addIndent();
+		    enumContentW
+		    	.append(enumCtxt.enumNameU)
+		    	.append("_")
+		    	.append(valueName)
+		    	.append("_NVAL = ")
+		    	.append(Long.toString(item.getNvalue()));
+		    enumContent.addNewLine();
+		    // add the constant to the nvalTable
+		    nvalTable.addIndent();
+		    nvalTableW
+	    		.append(enumCtxt.enumNameU)
+	    		.append("_")
+	    		.append(valueName)
+		    	.append("_NVAL,");
+		    nvalTable.addNewLine();
 	    }
 	    enumContent.closeConstBlock();
+	    nvalTable.closeBlock();
+	    
+	    enumContent.addNewLine();
+	    enumContent.addStatements(nvalTableW);
+	    
 	    // follow with the variable block to define simili constants
+	    enumContent.addNewLine();
 	    enumContent.openVarBlock();
 	    for (int i = 0; i < enumSize; i++)
 	    {
@@ -1621,22 +1637,38 @@ import esa.mo.xsd.ErrorDefinitionList;
 	  	writer.addNewLine();
 	  	writer.addSingleLineComment(comment);
 	  	// func (*<Enum>) GetAreaNumber() mal.UShort {
-	  	//   return AREA_NUMBER
+	  	//   return [<area>.]AREA_NUMBER
 	  	// }
 	  	writer.openFunction("GetAreaNumber", "*" + enumName);
 	  	writer.openFunctionBody(new String[] {"mal.UShort"});
-	  	writer.addStatement("return AREA_NUMBER");
+	  	writer.addIndent();
+	  	swriter.append("return ");
+	  	if (! enumCtxt.isAreaType()) {
+	  		swriter
+	  			.append(enumCtxt.areaContext.areaNameL)
+	  			.append('.');
+	  	}
+	  	swriter.append("AREA_NUMBER");
+	  	writer.addNewLine();
 	  	writer.closeFunctionBody();
 
 	  	comment = "Returns the version of the area this element type belongs to.";
 	  	writer.addNewLine();
 	  	writer.addSingleLineComment(comment);
 	  	// func (*<Enum>) GetAreaVersion() mal.UOctet {
-	  	//   return AREA_VERSION
+	  	//   return [<area>.]AREA_VERSION
 	  	// }
 	  	writer.openFunction("GetAreaVersion", "*" + enumName);
 	  	writer.openFunctionBody(new String[] {"mal.UOctet"});
-	  	writer.addStatement("return AREA_VERSION");
+	  	writer.addIndent();
+	  	swriter.append("return ");
+	  	if (! enumCtxt.isAreaType()) {
+	  		swriter
+	  			.append(enumCtxt.areaContext.areaNameL)
+	  			.append('.');
+	  	}
+	  	swriter.append("AREA_VERSION");
+	  	writer.addNewLine();
 	  	writer.closeFunctionBody();
 
 	  	comment = "Returns the number of the service this element type belongs to.";
@@ -1752,14 +1784,32 @@ import esa.mo.xsd.ErrorDefinitionList;
 	
 	    getLog().info("Creating composite " + malCompName);
 	
-	    // nothing is generated for abstract types
 	    boolean abstractComposite = (null == composite.getShortFormPart());
 	    if (abstractComposite) {
+	    	AbstractCompositeWriter writer = new AbstractCompositeWriter(folder, areaContext, serviceContext, composite);
+	    	writer.init();
+	    	writer.close();
 	    	return;
 	    }
 	    
 	    CompositeContext compCtxt = new CompositeContext(areaContext, serviceContext, composite, folder);
-	    String mapCompNameL = compCtxt.mapCompNameL;
+	    // create the list of parent abstract composites
+    	List<TypeReference> compositeHierarchy = new ArrayList<>();
+      CompositeType theType = compositeTypesMap.get(new TypeKey(area.getName(), (service == null ? null : service.getName()), composite.getName()));
+      while (theType != null) {
+      	if (theType.getExtends() == null) {
+      		theType = null;
+      	} else {
+      		TypeReference superType = theType.getExtends().getType();
+      		if (StdStrings.COMPOSITE.equals(superType.getName())) {
+      			theType = null;
+      		} else {
+      			compositeHierarchy.add(superType);
+      			compCtxt.reqTypes.add(superType);
+      			theType = compositeTypesMap.get(new TypeKey(superType));
+      		}
+      	}
+      }
 	
 	    compCtxt.writer.init();
 	    
@@ -1779,23 +1829,12 @@ import esa.mo.xsd.ErrorDefinitionList;
 	    // implement the mal.Element API
 	    addCompositeMalElementAPI(compCtxt);
 	    
-	    // create the list type associated to the composite
-	    createCompositeList(compCtxt);
+	    // implement the parent abstract composite marker interfaces
+	    addCompositeAbstractAPIs(compCtxt, compositeHierarchy);
 	    
-//	    // create the type short form
-//	    comment = "short form for list of composite type " + malCompName;
-//	    areaContext.areaHTypes.addNewLine();
-//	    areaContext.areaHTypes.addSingleLineComment(comment);
-//	    // #define <AREA>_[<SERVICE>_]<COMPOSITE>_LIST_SHORT_FORM <type absolute short form>
-//	    typeShortForm = getAbsoluteShortForm(
-//	    		area.getNumber(),
-//	    		service == null ? 0 : service.getNumber(),
-//					area.getVersion(),
-//					-composite.getShortFormPart().intValue());
-//	    areaContext.areaHTypes.addDefine(
-//	    		mapCompNameU + "_LIST_SHORT_FORM",
-//	    		"0x" + Long.toHexString(typeShortForm) + "L");
-	
+	    // create the list type associated to the composite
+	    createCompositeList(compCtxt, compositeHierarchy);
+	    
 	    compCtxt.writer.close();
 	  }
 	  
@@ -1923,7 +1962,7 @@ import esa.mo.xsd.ErrorDefinitionList;
 	  	swriter
 	  		.append("if ")
 	  		.append(GoFileWriter.FUNC_RECEIVER)
-	  		.append(" != nil || i >= ")
+	  		.append(" == nil || i >= ")
 	  		.append(GoFileWriter.FUNC_RECEIVER)
 	  		.append(".Size() {");
 	  	writer.addNewLine(1);
@@ -2053,22 +2092,38 @@ import esa.mo.xsd.ErrorDefinitionList;
 	  	writer.addNewLine();
 	  	writer.addSingleLineComment(comment);
 	  	// func (*<TypeName>) GetAreaNumber() mal.UShort {
-	  	//   return AREA_NUMBER
+	  	//   return [<area>.]AREA_NUMBER
 	  	// }
 	  	writer.openFunction("GetAreaNumber", "*" + typeName);
 	  	writer.openFunctionBody(new String[] {"mal.UShort"});
-	  	writer.addStatement("return AREA_NUMBER");
+	  	writer.addIndent();
+	  	swriter.append("return ");
+	  	if (!writer.isAreaType()) {
+	  		swriter
+	  			.append(writer.getAreaNameL())
+	  			.append('.');
+	  	}
+	  	swriter.append("AREA_NUMBER");
+	  	writer.addNewLine();
 	  	writer.closeFunctionBody();
 
 	  	comment = "Returns the version of the area this element type belongs to.";
 	  	writer.addNewLine();
 	  	writer.addSingleLineComment(comment);
 	  	// func (*<TypeName>) GetAreaVersion() mal.UOctet {
-	  	//   return AREA_VERSION
+	  	//   return [<area>.]AREA_VERSION
 	  	// }
 	  	writer.openFunction("GetAreaVersion", "*" + typeName);
 	  	writer.openFunctionBody(new String[] {"mal.UOctet"});
-	  	writer.addStatement("return AREA_VERSION");
+	  	writer.addIndent();
+	  	swriter.append("return ");
+	  	if (!writer.isAreaType()) {
+	  		swriter
+  				.append(writer.getAreaNameL())
+	  			.append('.');
+	  	}
+	  	swriter.append("AREA_VERSION");
+	  	writer.addNewLine();
 	  	writer.closeFunctionBody();
 
 	  	comment = "Returns the number of the service this element type belongs to.";
@@ -2287,7 +2342,7 @@ import esa.mo.xsd.ErrorDefinitionList;
   		}
 	  }
 	  
-	  protected void createCompositeList(CompositeContext compCtxt) throws IOException
+	  protected void createCompositeList(CompositeContext compCtxt, List<TypeReference> compositeHierarchy) throws IOException
 	  {
 	    AreaType area = compCtxt.areaContext.area;
 	    ServiceType service = null;
@@ -2302,6 +2357,37 @@ import esa.mo.xsd.ErrorDefinitionList;
 	    CompositeListWriter writer = new CompositeListWriter(compCtxt);	
 	    writer.init();
 	    createGenericTypeList(writer);
+
+	  	if (compositeHierarchy != null && compositeHierarchy.size() > 0) {
+	  		// implement the parent abstract composite marker interfaces
+	  		String compositeName = compCtxt.compositeName + "List";
+
+	  		for (TypeReference parent : compositeHierarchy) {
+	  			String parentName = parent.getName().substring(0, 1).toUpperCase() + parent.getName().substring(1) + "List";
+	  			String parentPackage = parent.getService() == null ? parent.getArea() : parent.getService();
+	  			parentPackage = parentPackage.toLowerCase();
+	  			String qfParentName = parentName;
+	  			if (!parentPackage.equals(writer.packageName)) {
+	  				qfParentName = parentPackage + "." + qfParentName;
+	  			}
+
+	  			String comment = "================================================================================";
+	  			writer.addNewLine();
+	  			writer.addSingleLineComment(comment);
+	  			comment = "Defines " + compositeName + " type as a " + parentName;
+	  			writer.addSingleLineComment(comment);
+
+	  			// func (receiver *<Composite>) <Parent>() <Parent> {
+	  			//   return receiver
+	  			// }
+	  			writer.openFunction(parentName, "*" + compositeName);
+	  			writer.openFunctionBody(new String[] { qfParentName });
+	  			writer.addStatement("return " + GoFileWriter.FUNC_RECEIVER);
+	  			writer.closeFunctionBody();
+	  			writer.addNewLine();
+	  		}
+	  	}
+	  	
 	    writer.close();
 	  }
 	  
@@ -2330,8 +2416,15 @@ import esa.mo.xsd.ErrorDefinitionList;
 	      parentType = compCtxt.composite.getExtends().getType();
 	    }
 	    
-	    // build the list of the component fields
-	    List<CompositeField> compElements = createCompositeElementsList(null, compCtxt.composite);
+	    // build the list of all the component fields
+	    TypeReference compositeTypeRef = TypeUtils.createTypeReference(
+	    		compCtxt.areaContext.area.getName(),
+	    		(compCtxt.serviceContext != null ? compCtxt.serviceContext.summary.getService().getName() : null),
+	    		compCtxt.composite.getName(),
+	    		false);
+	    List<CompositeField> compElements = new LinkedList<CompositeField>();
+	    createCompositeSuperElementsList(null, compositeTypeRef, compElements);
+//	    List<CompositeField> compElements = createCompositeElementsList(null, compCtxt.composite);
 	    if (!compElements.isEmpty())
 	    {
 	    	for (CompositeField element : compElements)
@@ -2385,8 +2478,7 @@ import esa.mo.xsd.ErrorDefinitionList;
 	    			{
 	    				compCtxt.holdsEnumField = true;
 	    				cfDetails.isEnumeration = true;
-	    				// TODO enum
-	    				cfDetails.fieldType = "mal.UOctet";
+	    				cfDetails.fieldType = cfDetails.qfTypeNameL;
 	    			}
 	    			else if (isComposite(cfDetails.type))
 	    			{
@@ -2473,7 +2565,7 @@ import esa.mo.xsd.ErrorDefinitionList;
 		  return buf.toString();
 	  }
 	
-	  protected ParameterDetails getParameterDetails(TypeInfo typeInfo) {
+	  protected ParameterDetails getParameterDetails(TypeInfo typeInfo, String packageName) {
 	  	ParameterDetails paramDetails = new ParameterDetails();
 	  	TypeReference ptype = typeInfo.getSourceType();
 	  	paramDetails.isError = /* FIXME */ false;
@@ -2486,8 +2578,7 @@ import esa.mo.xsd.ErrorDefinitionList;
 	  	paramDetails.isPolymorph = /* FIXME */ false;
 	  	paramDetails.isPresenceFlag = false;
 	  	paramDetails.isPubSub = /* FIXME */ false;
-	  	// TODO modifier le parametre de getTypeFQN si cette fonction est effectivement appelee
-	  	paramDetails.qfTypeNameL = getTypeFQN(ptype, null);
+	  	paramDetails.qfTypeNameL = getTypeFQN(ptype, packageName);
 	  	paramDetails.type = ptype;
 	  	paramDetails.sourceType = typeInfo;
 
@@ -2498,19 +2589,20 @@ import esa.mo.xsd.ErrorDefinitionList;
 			if (! paramDetails.isAbstract) {
 				targetTypeBuf.append("*");
 			}
+			String typePackage;
 			if (ptype.getService() != null) {
-				targetTypeBuf.append(ptype.getService().toLowerCase());
-				nilValueBuf.append(ptype.getService().toLowerCase());
+				typePackage = ptype.getService().toLowerCase();
 			} else {
-				targetTypeBuf.append(ptype.getArea().toLowerCase());
-				nilValueBuf.append(ptype.getArea().toLowerCase());
+				typePackage = ptype.getArea().toLowerCase();
 			}
-			targetTypeBuf
-			.append(".")
-			.append(typeName);
+			if (!typePackage.equals(packageName)) {
+				targetTypeBuf.append(typePackage).append(".");
+				nilValueBuf.append(typePackage).append(".");
+			}
+			targetTypeBuf.append(typeName);
 			nilValueBuf
-			.append(".Null")
-			.append(typeName);
+				.append("Null")
+				.append(typeName);
 			// TODO pas de mal.NullAttribute - est-ce un cas possible ?
 			if (paramDetails.isList) {
 				targetTypeBuf.append("List");
@@ -2523,13 +2615,14 @@ import esa.mo.xsd.ErrorDefinitionList;
 	  	return paramDetails;
 	  }
 
-	  protected List<ParameterDetails> getParameterDetailsList(List<TypeInfo> typeInfos) {
-	  	if (typeInfos == null)
+	  protected List<ParameterDetails> getParameterDetailsList(List<TypeInfo> typeInfos, String packageName) {
+	  	if (typeInfos == null || typeInfos.isEmpty())
 	  		return null;
 	  	List<ParameterDetails> pdlist = new ArrayList<>(typeInfos.size());
 	  	for (int i = 0; i < typeInfos.size(); i ++) {
-	  		pdlist.add(getParameterDetails(typeInfos.get(i)));
+	  		pdlist.add(getParameterDetails(typeInfos.get(i), packageName));
 	  	}
+	  	pdlist.get(pdlist.size()-1).isLast = true;
 	  	return pdlist;
 	  }
 	  
@@ -2620,6 +2713,9 @@ import esa.mo.xsd.ErrorDefinitionList;
 	  		decodeW
 	  			.append("Null")
 	  			.append(cfDetails.type.getName());
+	  		if (cfDetails.isList) {
+	  			decodeW.append("List");
+	  		}
 	  	}
 	  	decodeW.append(")");
 	  	decode.addNewLine();
@@ -2780,22 +2876,38 @@ import esa.mo.xsd.ErrorDefinitionList;
 	  	writer.addNewLine();
 	  	writer.addSingleLineComment(comment);
 	  	// func (*<Composite>) GetAreaNumber() mal.UShort {
-	  	//   return AREA_NUMBER
+	  	//   return [<area>.]AREA_NUMBER
 	  	// }
 	  	writer.openFunction("GetAreaNumber", "*" + compositeName);
 	  	writer.openFunctionBody(new String[] {"mal.UShort"});
-	  	writer.addStatement("return AREA_NUMBER");
+	  	writer.addIndent();
+	  	swriter.append("return ");
+	  	if (!compCtxt.isAreaType()) {
+	  		swriter
+	  			.append(compCtxt.areaContext.areaNameL)
+	  			.append('.');
+	  	}
+	  	swriter.append("AREA_NUMBER");
+	  	writer.addNewLine();
 	  	writer.closeFunctionBody();
 
 	  	comment = "Returns the version of the area this element type belongs to.";
 	  	writer.addNewLine();
 	  	writer.addSingleLineComment(comment);
 	  	// func (*<Composite>) GetAreaVersion() mal.UOctet {
-	  	//   return AREA_VERSION
+	  	//   return [<area>.]AREA_VERSION
 	  	// }
 	  	writer.openFunction("GetAreaVersion", "*" + compositeName);
 	  	writer.openFunctionBody(new String[] {"mal.UOctet"});
-	  	writer.addStatement("return AREA_VERSION");
+	  	writer.addIndent();
+	  	swriter.append("return ");
+	  	if (!compCtxt.isAreaType()) {
+	  		swriter
+	  			.append(compCtxt.areaContext.areaNameL)
+	  			.append('.');
+	  	}
+	  	swriter.append("AREA_VERSION");
+	  	writer.addNewLine();
 	  	writer.closeFunctionBody();
 
 	  	comment = "Returns the number of the service this element type belongs to.";
@@ -2872,7 +2984,42 @@ import esa.mo.xsd.ErrorDefinitionList;
 	  	
 	  	// TODO Stringer interface ?
 	  }
-	  
+
+	  private void addCompositeAbstractAPIs(CompositeContext compCtxt, List<TypeReference> compositeHierarchy) throws IOException
+	  {
+	  	if (compositeHierarchy == null || compositeHierarchy.size() == 0)
+	  		return;
+	  	
+	  	GoFileWriter writer = compCtxt.writer.compositeContent;
+	  	StatementWriter swriter = compCtxt.writer.compositeContentW;
+	  	String compositeName = compCtxt.compositeName;
+
+	  	for (TypeReference parent : compositeHierarchy) {
+	  		String parentName = parent.getName().substring(0, 1).toUpperCase() + parent.getName().substring(1);
+	  		String parentPackage = parent.getService() == null ? parent.getArea() : parent.getService();
+	  		parentPackage = parentPackage.toLowerCase();
+	  		String qfParentName = parentName;
+	  		if (!parentPackage.equals(writer.packageName)) {
+	  			qfParentName = parentPackage + "." + qfParentName;
+	  		}
+	  		
+	  		String comment = "================================================================================";
+	  		writer.addNewLine();
+	  		writer.addSingleLineComment(comment);
+	  		comment = "Defines " + compositeName + " type as a " + parentName;
+	  		writer.addSingleLineComment(comment);
+
+		  	// func (receiver *<Composite>) <Parent>() <Parent> {
+		  	//   return receiver
+		  	// }
+		  	writer.openFunction(parentName, "*" + compositeName);
+		  	writer.openFunctionBody(new String[] { qfParentName });
+		  	writer.addStatement("return " + GoFileWriter.FUNC_RECEIVER);
+		  	writer.closeFunctionBody();
+	  		writer.addNewLine();
+	  	}
+	  }
+
 	  private void processInitInteraction(OperationContext opContext, String opStage, List<TypeInfo> inParameters, List<TypeInfo> outParameters) throws IOException
 	  {
 	  	OpStageContext opStageCtxt = new OpStageContext(opContext, opStage, true, inParameters, outParameters);
@@ -3060,8 +3207,13 @@ import esa.mo.xsd.ErrorDefinitionList;
 	    	// }
 	    	// outParam_<param>, ok := outElem_<param>.(<targetType>)
 	    	// if ! ok {
-	    	//   err = errors.New("unexpected type for parameter " + <param>)
-	    	//   return <nil>, err
+	  		//   // if targetType is abstract NullElement cannot be cast
+	  		//   if outElem_<param> == mal.NullElement {
+    		//     outParam_<param> = Null<targetType>
+    		//   } else {
+	    	//     err = errors.New("unexpected type for parameter " + <param>)
+	    	//     return <nil>, err
+	  		//   }
 	    	// }
 	    	comment = "decode out parameters";
 	    	serviceCContent.addSingleLineComment(comment);
@@ -3096,7 +3248,24 @@ import esa.mo.xsd.ErrorDefinitionList;
 	    			.append(param.targetType)
 	    			.append(")");
 	    		serviceCContent.addNewLine();
-	    		serviceCContent.addStatement("if ! ok {", 1);
+	    		serviceCContent.addStatement("if !ok {", 1);
+		  		boolean needExplicitCasting = param.isAbstract && !param.isAbstractAttribute;
+		  		if (needExplicitCasting) {
+		  			serviceCContent.addIndent();
+		  			serviceCContentW
+		  				.append("if outElem_")
+		  				.append(param.fieldName)
+		  				.append(" == mal.NullElement {");
+		  			serviceCContent.addNewLine(1);
+		  			serviceCContent.addIndent();
+		  			serviceCContentW
+		  				.append("outParam_")
+		  				.append(param.fieldName)
+		  				.append(" = ")
+		  				.append(param.nilValue);
+		  			serviceCContent.addNewLine(-1);
+		  			serviceCContent.addStatement("} else {", 1);
+		  		}
 	    		serviceCContent.addIndent();
 	    		serviceCContentW
     				.append("err = errors.New(\"unexpected type for parameter ")
@@ -3104,6 +3273,9 @@ import esa.mo.xsd.ErrorDefinitionList;
     				.append("\")");
 	    		serviceCContent.addNewLine();
 	    		serviceCContent.addStatement(nilReturn);
+		  		if (needExplicitCasting) {
+		    		serviceCContent.closeBlock();
+		  		}
 	    		serviceCContent.closeBlock();
 	    		serviceCContent.addNewLine();
 
@@ -3164,21 +3336,38 @@ import esa.mo.xsd.ErrorDefinitionList;
 	  	GoFileWriter servicePHandlers = serviceContext.provider.servicePHandlers;
 	  	StatementWriter servicePHandlersW = serviceContext.provider.servicePHandlersW;
 	  	String opName = opStageCtxt.opContext.operationName;
+	  	String returnErrStatement = (opStageCtxt.opContext.isNoError ? "return err" : "return opHelper.ReturnError(err)");
 	  	
 	  	String comment = "define the handler for operation " + opName;
 	  	servicePHandlers.addSingleLineComment(comment);
 	  	// <operation>Handler := func(msg *mal.Message, t malapi.Transaction) error {
+	  	// // create the Helper first to enable access to the error function
+	  	// opHelper, err := New<operation>Helper(t)
+			// if err != nil {
+			//	 return err
+			// }
 	  	//   if msg == nil {
-	  	//     return errors.New("missing Message")
+	  	//     err = errors.New("missing Message")
+	  	//     <returnErrStatement>
 	  	//   }
 	  	servicePHandlers.addIndent();
 	  	servicePHandlersW
 		  	.append(opName)
 		  	.append("Handler := func(msg *mal.Message, t malapi.Transaction) error {");
 	  	servicePHandlers.addNewLine();
-	  	servicePHandlers.isErrDefined = false;
+	  	servicePHandlers.addIndent();
+	  	servicePHandlersW
+  			.append("opHelper, err := New")
+	  		.append(opName)
+	  		.append("Helper(t)");
+	  	servicePHandlers.addNewLine();
+	  	servicePHandlers.addStatement("if err != nil {", 1);
+	  	servicePHandlers.addStatement("return err");
+	  	servicePHandlers.closeBlock();
+	  	servicePHandlers.isErrDefined = true;
 	  	servicePHandlers.addStatement("if msg == nil {", 1, true);
-	  	servicePHandlers.addStatement("return errors.New(\"missing Message\")", 1, true);
+	  	servicePHandlers.addStatement("err := errors.New(\"missing Message\")", 1, true);
+	  	servicePHandlers.addStatement(returnErrStatement);
 	  	servicePHandlers.closeBlock();
 	  	
 	  	comment = "decode in parameters";
@@ -3188,12 +3377,17 @@ import esa.mo.xsd.ErrorDefinitionList;
 	  		ParameterDetails param = opStageCtxt.inParameters.get(i);
 	  		// inElem_<param>, err := msg.Decode[Last]Parameter(<nilvalue>[, <isabstract>])
 	  		// if err != nil {
-	  		//	 TODO traitement de l'erreur specifique a l'operation
+	  		//	 // traitement de l'erreur specifique a l'operation
 	  		// }
 	    	// inParam_<param>, ok := inElem_<param>.(<targetType>)
 	    	// if ! ok {
-	    	//   err = errors.New("unexpected type for parameter " + <param>)
-	  		//	 TODO traitement de l'erreur specifique a l'operation
+	  		//   // if targetType is abstract, NullElement cannot be cast
+	  		//   if inElem_<param> == mal.NullElement {
+    		//     inParam_<param> = Null<targetType>
+    		//   } else {
+	    	//     err = errors.New("unexpected type for parameter " + <param>)
+	  		//	   // traitement de l'erreur specifique a l'operation
+	  		//   }
 	    	// }
 	  		servicePHandlers.addIndent();
 	  		servicePHandlersW
@@ -3205,7 +3399,7 @@ import esa.mo.xsd.ErrorDefinitionList;
 	  		}
 	  		servicePHandlersW
 	  			.append("Parameter(")
-	  			.append(param.nilValue);
+	  			.append(param.isAbstract ? "nil" : param.nilValue);
 	  		if (param.isLast) {
 	  			servicePHandlersW
 	  				.append(", ")
@@ -3214,7 +3408,7 @@ import esa.mo.xsd.ErrorDefinitionList;
 	  		servicePHandlersW.append(")");
 	  		servicePHandlers.addNewLine();
 	  		servicePHandlers.addStatement("if err != nil {", 1);
-	  		servicePHandlers.addStatement("return err");
+		  	servicePHandlers.addStatement(returnErrStatement);
 	  		servicePHandlers.closeBlock();
 	  		servicePHandlers.addIndent();
 	  		servicePHandlersW
@@ -3227,32 +3421,42 @@ import esa.mo.xsd.ErrorDefinitionList;
   				.append(")");
 	  		servicePHandlers.addNewLine();
 	  		servicePHandlers.addStatement("if !ok {", 1);
+	  		boolean needExplicitCasting = param.isAbstract && !param.isAbstractAttribute;
+	  		if (needExplicitCasting) {
+	  			servicePHandlers.addIndent();
+	  			servicePHandlersW
+	  				.append("if inElem_")
+	  				.append(param.fieldName)
+	  				.append(" == mal.NullElement {");
+	  			servicePHandlers.addNewLine(1);
+	  			servicePHandlers.addIndent();
+	  			servicePHandlersW
+	  				.append("inParam_")
+	  				.append(param.fieldName)
+	  				.append(" = ")
+	  				.append(param.nilValue);
+	  			servicePHandlers.addNewLine(-1);
+	  			servicePHandlers.addStatement("} else {", 1);
+	  		}
 	  		servicePHandlers.addIndent();
 	  		servicePHandlersW
   				.append("err = errors.New(\"unexpected type for parameter ")
   				.append(param.fieldName)
   				.append("\")");
 	  		servicePHandlers.addNewLine();
-	  		servicePHandlers.addStatement("return err");
+		  	servicePHandlers.addStatement(returnErrStatement);
+	  		if (needExplicitCasting) {
+		  		servicePHandlers.closeBlock();
+	  		}
 	  		servicePHandlers.closeBlock();
 	  	}
 	  	
 	  	comment = "call the provider implementation";
 	  	servicePHandlers.addSingleLineComment(comment);
-	  	// opHelper, err := New<operation>Helper(t)
 	  	// err = providerImpl.<operation>(opHelper, [inParam_<param>])
 			// if err != nil {
 			//	 return opHelper.ReturnError(err)
 			// }
-	  	servicePHandlers.addIndent();
-	  	servicePHandlersW
-  			.append("opHelper, err := New")
-	  		.append(opName)
-	  		.append("Helper(t)");
-	  	servicePHandlers.addNewLine();
-	  	servicePHandlers.addStatement("if err != nil {", 1);
-	  	servicePHandlers.addStatement("return err");
-	  	servicePHandlers.closeBlock();
 	  	servicePHandlers.addIndent();
 	  	servicePHandlersW
 	  		.append("err ")
@@ -3270,11 +3474,7 @@ import esa.mo.xsd.ErrorDefinitionList;
 	  	servicePHandlersW.append(")");
 	  	servicePHandlers.addNewLine();
 	  	servicePHandlers.addStatement("if err != nil {", 1);
-	  	if (opStageCtxt.opContext.isNoError) {
-	  		servicePHandlers.addStatement("return err");
-	  	} else {
-	  		servicePHandlers.addStatement("return opHelper.ReturnError(err)");
-	  	}
+	  	servicePHandlers.addStatement(returnErrStatement);
 	  	servicePHandlers.closeBlock();
 	  	servicePHandlers.addStatement("return nil");
 	  	servicePHandlers.closeBlock();
@@ -3617,8 +3817,6 @@ import esa.mo.xsd.ErrorDefinitionList;
 	  	final ServiceProviderWriter provider;
 
 	  	// list of packages to import
-	  	// TODO verifier ou traiter la non collision des noms d'import
-	  	// TODO il faut import les packages de service egalement
 	  	final Set<TypeReference> reqTypes;
 	  	
 	  	public ServiceContext(AreaContext areaContext, ServiceType service) throws IOException
@@ -3846,22 +4044,22 @@ import esa.mo.xsd.ErrorDefinitionList;
 		    addNewLine();
 	    	
 		    // set the global variables
-		    // var cctx malapi.ClientContext
+		    // var Cctx malapi.ClientContext
 		    // func Init(cctxin *malapi.ClientContext) error {
 		    //   if cctxin == nil {
 		    //     return errors.New("Illegal nil client context in Init")
 		    //   }
-		    //   cctx = cctxin
+		    //   Cctx = cctxin
 		    //   return nil
 		    // }
-		    addStatement("var cctx *malapi.ClientContext");
+		    addStatement("var Cctx *malapi.ClientContext");
 		    openFunction("Init", null);
 		    addFunctionParameter("*malapi.ClientContext", "cctxin", true);
 		    openFunctionBody(new String[] { "error" });
 		    addStatement("if cctxin == nil {", 1);
 		    addStatement("return errors.New(\"Illegal nil client context in Init\")");
 		    closeBlock();
-		    addStatement("cctx = cctxin");
+		    addStatement("Cctx = cctxin");
 		    addStatement("return nil");
 		    closeFunctionBody();
 		    
@@ -3947,9 +4145,7 @@ import esa.mo.xsd.ErrorDefinitionList;
 		    serviceContent.addNewLine();
 		    serviceContent.addSingleLineComment(comment);
 		    serviceContent.openStruct("Provider");
-	      // TODO this field could be made global
-		    serviceContent.addStructField("*malapi.ClientContext", "cctx");
-		    serviceContent.addStructField("mal.EncodingFactory", "factory");
+		    serviceContent.addStructField("*malapi.ClientContext", "Cctx");
 		    serviceContent.addStructField("ProviderInterface", "provider");
 		    serviceContent.closeStruct();
 		    
@@ -4035,17 +4231,17 @@ import esa.mo.xsd.ErrorDefinitionList;
 	    	addStatements(serviceContentW);
 	    	
 	    	// finalize the NewProvider function
-	    	// provider := &Provider { cctx, nil, providerImpl }
+	    	// provider := &Provider { cctx, providerImpl }
 	    	// return provider, nil
-	    	servicePHandlers.addStatement("provider := &Provider { cctx, nil, providerImpl }");
+	    	servicePHandlers.addStatement("provider := &Provider { cctx, providerImpl }");
 	    	servicePHandlers.addStatement("return provider, nil");
 	    	servicePHandlers.closeFunctionBody();
 	    	addStatements(servicePHandlersW);
 	    	
 	    	// add a provider Close function
 	    	// func (receiver *Provider) Close() error {
-	    	//   if receiver.cctx != nil {
-	    	//     err := receiver.cctx.Close()
+	    	//   if receiver.Cctx != nil {
+	    	//     err := receiver.Cctx.Close()
 	    	//     if err != nil {
 	    	//       return err
 	    	//     }
@@ -4058,12 +4254,12 @@ import esa.mo.xsd.ErrorDefinitionList;
 	    	addIndent();
 	    	out.append("if ")
 	    		.append(FUNC_RECEIVER)
-	    		.append(".cctx != nil {");
+	    		.append(".Cctx != nil {");
 	    	addNewLine(1);
 	    	addIndent();
 	    	out.append("err := ")
 	    		.append(FUNC_RECEIVER)
-	    		.append(".cctx.Close()");
+	    		.append(".Cctx.Close()");
 	    	addNewLine();
 	    	addStatement("if err != nil {", 1);
 	    	addStatement("return err");
@@ -4238,8 +4434,9 @@ import esa.mo.xsd.ErrorDefinitionList;
 	      	nilBody = "";
 //	      	throw new IllegalArgumentException("unexpected opStage: " + opStage);
 	      }
-	      this.inParameters = getParameterDetailsList(inParameters);
-	      this.outParameters = getParameterDetailsList(outParameters);
+	      String packageName = opContext.serviceContext.serviceNameL;
+	      this.inParameters = getParameterDetailsList(inParameters, packageName);
+	      this.outParameters = getParameterDetailsList(outParameters, packageName);
 	  	}
 	  }
 	  
@@ -4258,8 +4455,6 @@ import esa.mo.xsd.ErrorDefinitionList;
 	  	final CompositeWriter writer;
 	  	
 	  	// list of packages to import
-	  	// TODO verifier ou traiter la non collision des noms d'import
-	  	// TODO il faut import les packages de service egalement
 	  	final Set<TypeReference> reqTypes;
 	  	ArrayList<String> imports;
 	  	
@@ -4497,6 +4692,122 @@ import esa.mo.xsd.ErrorDefinitionList;
 	  }
 
 	  /**
+	   * Isolate generation of an abstract composite go file in this class.
+	   * 
+	   * @author lacourte
+	   *
+	   */
+	  private class AbstractCompositeWriter extends GoFileWriter {
+
+	  	private final AreaContext areaContext;
+	  	private final ServiceContext serviceContext;
+	  	private final CompositeType composite;
+	  	
+	    /**
+	     * Constructor.
+	     * @param compCtxt The Composite context.
+	     *
+	     * @throws IOException If any problems creating the file.
+	     */
+	    public AbstractCompositeWriter(File folder, AreaContext areaContext, ServiceContext serviceContext, CompositeType composite) throws IOException
+	    {
+	    	super(folder, composite.getName().toLowerCase());
+	    	String packageName = (serviceContext == null ? areaContext.areaNameL : serviceContext.serviceNameL);
+	    	setPackageName(packageName);
+	    	this.areaContext = areaContext;
+	    	this.serviceContext = serviceContext;
+	    	this.composite = composite;
+	    }
+	    /**
+	     * Initialize file sections.
+	     */
+	    public void init() throws IOException
+	    {
+	    	// declare package name
+	    	// package <package name>
+	      addStatement("package " + packageName);
+	      addNewLine();
+
+	    	// write imports
+	    	openImportBlock();
+	    	addIndent();
+	    	out.append("\"")
+	    		.append(BASE_PACKAGE_DEFAULT)
+	    		.append("/mal\"");
+	    	addNewLine();
+	    	closeImportBlock();
+	    	
+	    	// An abstract composite type and its list type are turned into marker interfaces
+  			String comment = "Defines the abstract composite interfaces.";
+  			addNewLine();
+  			addSingleLineComment(comment);
+
+  			String compositeName = composite.getName().substring(0, 1).toUpperCase() + composite.getName().substring(1);
+	    	// type <Composite> interface {
+  			//   mal.Composite
+  			//   <Composite>() <Composite>
+	    	// }
+  			addIndent();
+  			out.append("type ")
+  				.append(compositeName)
+  				.append(" interface {");
+  			addNewLine(1);
+  			addStatement("mal.Composite");
+  			addIndent();
+  			out.append(compositeName)
+  				.append("() ")
+  				.append(compositeName);
+  			addNewLine();
+  			closeBlock();
+  			// var Null<Composite> <Composite> = nil
+  			addIndent();
+  			out.append("var Null")
+					.append(compositeName)
+					.append(" ")
+					.append(compositeName)
+					.append(" = nil");
+  			addNewLine();
+
+	    	// type <Composite>List interface {
+  			//   mal.ElementList
+  			//   <Composite>List() <Composite>List
+	    	// }
+  			addNewLine();
+  			addIndent();
+  			out.append("type ")
+  				.append(compositeName)
+  				.append("List interface {");
+  			addNewLine(1);
+  			addStatement("mal.ElementList");
+  			addIndent();
+  			out.append(compositeName)
+  				.append("List() ")
+  				.append(compositeName)
+  				.append("List");
+  			addNewLine();
+  			closeBlock();
+  			// var Null<Composite>List <Composite>List = nil
+  			addIndent();
+  			out.append("var Null")
+					.append(compositeName)
+					.append("List ")
+					.append(compositeName)
+					.append("List = nil");
+  			addNewLine();
+	    }
+	    
+	    /**
+	     * Finalize the file contents and close the underlying writer.
+	     * 
+	     * @throws IOException
+	     */
+	    public void close() throws IOException
+	    {
+	    	super.close();
+	    }
+	  }
+
+	  /**
 	   * Isolate generation of the <type>_list.go file in this class.
 	   * 
 	   * @author lacourte
@@ -4507,7 +4818,6 @@ import esa.mo.xsd.ErrorDefinitionList;
 	    /**
 	     * Constructor.
 	     *
-	     * @param compCtxt The Composite context.
 	     * @throws IOException If any problems creating the file.
 	     */
 	    public TypeListWriter() throws IOException
@@ -4538,6 +4848,16 @@ import esa.mo.xsd.ErrorDefinitionList;
 	    		.append(BASE_PACKAGE_DEFAULT)
 	    		.append("/mal\"");
 	    	addNewLine();
+
+	    	// import this service area if required
+	    	if (!isAreaType()) {
+	    		addIndent();
+	    		out.append("\"")
+	    			.append(getTypePath(TypeUtils.createTypeReference(getAreaNameL(), null, "", false)))
+	    			.append("\"");
+	    		addNewLine();
+	    	}
+	    	
 	    	closeImportBlock();
 	    }
 	    
@@ -4702,6 +5022,19 @@ import esa.mo.xsd.ErrorDefinitionList;
 	    		.append(BASE_PACKAGE_DEFAULT)
 	    		.append("/mal\"");
 	    	addNewLine();
+	    	
+	    	// import this service area
+	    	// TODO peut etre pas necessaire, et risque si pas utilise ?
+	    	if (!composite.isAreaType()) {
+	    		String pkg = composite.areaContext.areaNameL;
+	    		imports.add(pkg);
+	    		addIndent();
+	    		out.append("\"")
+	    			.append(getTypePath(TypeUtils.createTypeReference(composite.areaContext.area.getName(), null, "", false)))
+	    			.append("\"");
+	    		addNewLine();
+	    	}
+	    	
 	    	String packageName = compositeContent.packageName;
 	    	for (TypeReference type : composite.reqTypes) {
 	    		String typePackage = type.getArea().toLowerCase();
@@ -4830,6 +5163,11 @@ import esa.mo.xsd.ErrorDefinitionList;
 
 	  	// enumeration context
 	  	private final EnumerationContext enumeration;
+	  	
+	  	/** buffer for the conversion table OVAL->NVAL */
+	  	final StatementWriter nvalTableW;
+	  	/** writer for the conversion table OVAL->NVAL */
+	  	final GoFileWriter nvalTable;
 
 	    /**
 	     * Constructor.
@@ -4844,6 +5182,9 @@ import esa.mo.xsd.ErrorDefinitionList;
 	    	this.enumeration = enumeration;
 	      Writer file = StubUtils.createLowLevelWriter(enumeration.folder, enumeration.enumNameL, "go");
 	      out = new StatementWriter(file);
+	      nvalTableW = new StatementWriter();
+	      nvalTable = new GoFileWriter(nvalTableW);
+	      nvalTable.setPackageName(packageName);
 	    }
 
 	    /**
@@ -4863,6 +5204,16 @@ import esa.mo.xsd.ErrorDefinitionList;
 	    		.append(BASE_PACKAGE_DEFAULT)
 	    		.append("/mal\"");
 	    	addNewLine();
+
+	    	// import this service area if required
+	    	if (!enumeration.isAreaType()) {
+	    		addIndent();
+	    		out.append("\"")
+	    			.append(getTypePath(TypeUtils.createTypeReference(enumeration.areaContext.area.getName(), null, "", false)))
+	    			.append("\"");
+	    		addNewLine();
+	    	}
+	    	
 	    	closeImportBlock();
 	    	addNewLine();
 	    }

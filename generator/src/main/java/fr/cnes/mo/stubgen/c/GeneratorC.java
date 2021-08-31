@@ -1569,6 +1569,8 @@ public class GeneratorC extends GeneratorBase
   	compositeC.openFunctionBody();
   	compositeC.addStatement("self->" + fieldPrefix + fieldName + "_attribute_tag = attribute_tag;");
   	compositeC.closeFunctionBody();
+  	
+  	addCompFieldAccessors(compositeH, compositeC, mapCompNameL, "union mal_attribute_t", fieldName);
   }
   
   private void addCompFieldAccessors(CFileWriter compositeH, CFileWriter compositeC, String mapCompNameL, String fieldType, String fieldName) throws IOException
